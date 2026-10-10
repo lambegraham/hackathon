@@ -31,7 +31,7 @@ export class ProfileStorageError extends Error {
 const sessionSchema = z.object({
     id: z.string().min(1).max(128),
     completedAt: z.iso.datetime(),
-    scenarioId: z.enum(['interview', 'raise', 'relationship', 'feedback', 'custom']),
+    scenarioId: z.enum(['interview', 'raise', 'relationship', 'feedback', 'flatmate', 'coldcall', 'bazaar', 'custom']),
     difficulty: z.enum(['friendly', 'neutral', 'challenging']),
     customScenario: z.string().max(1500).optional(),
     targetRole: z.string().trim().max(200).optional(),

@@ -1,4 +1,6 @@
 import { createSpeechTranscript } from '../speech-transcript';
+import type { Tonality } from '@/lib/contracts';
+import { tonalityById } from '@/lib/tonality';
 import { ApiError, requireKey } from './http';
 import { VOICES, type VoiceId } from '../voices';
 export function validateWav(bytes: Uint8Array, maxSeconds = 60) {
@@ -113,10 +115,15 @@ export async function transcribe(bytes: Uint8Array, scenario?: string) {
         return { text, speech: transcript.snapshot() };
     });
 }
-export async function speak(text: string, voiceId?: VoiceId) {
+export function voiceFor(tonality?: Tonality) {
+    if (!tonality)
+        return process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ';
+    return process.env[`GRADIUM_VOICE_${tonality.toUpperCase()}`] || tonalityById(tonality).voiceId;
+}
+export async function speak(text: string, voiceId?: VoiceId, tonality?: Tonality) {
     return await gradium('tts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            text, voice_id: providerVoice(voiceId), output_format: 'wav', only_audio: true
+            text, voice_id: providerVoice(voiceId, tonality), output_format: 'wav', only_audio: true
         })
     }, async (response) => {
         const bytes = finalizeStreamingWav(await boundedResponse(response, 16 * 1024 * 1024));
@@ -153,18 +160,18 @@ function finalizeStreamingWav(source: Uint8Array) {
     return bytes;
 }
 
-function providerVoice(voiceId?: VoiceId) {
+function providerVoice(voiceId?: VoiceId, tonality?: Tonality) {
     if (voiceId === undefined)
-        return process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ';
+        return voiceFor(tonality);
     const voice = VOICES.find(item => item.id === voiceId);
     if (!voice)
         throw new ApiError(400, 'Choose a supported voice.');
     return voice.providerId;
 }
 
-export async function streamSpeech(text: string, voiceId?: VoiceId, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+export async function streamSpeech(text: string, voiceId?: VoiceId, signal?: AbortSignal, tonality?: Tonality): Promise<ReadableStream<Uint8Array>> {
     const apiKey = requireKey('GRADIUM_API_KEY');
-    const voice = providerVoice(voiceId);
+    const voice = providerVoice(voiceId, tonality);
     const controller = new AbortController();
     const failed = () => new ApiError(502, 'Gradium could not complete the audio stream. Please try again.');
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;

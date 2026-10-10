@@ -8,7 +8,7 @@ Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b
 
 Use Node.js 22.21 or newer. Install with `npm ci`, copy `.env.example` to `.env.local`, then set `GEMINI_API_KEY` and `GRADIUM_API_KEY`. Run `npm run dev` and open http://127.0.0.1:3000.
 
-Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. Conversational turns default to `gemini-3.5-flash-lite`; feedback defaults to `gemini-3.1-pro-preview`. Set `GEMINI_CONVERSATION_MODEL` and `GEMINI_FEEDBACK_MODEL` to override them independently. A legacy `GEMINI_MODEL` setting remains the fallback for either role when its specific setting is absent. The studio offers Marshall (male, default) and Lainey (female), with matching characters. `GRADIUM_VOICE_ID` remains the fallback for API calls that omit a voice choice. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
+Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. Conversational turns default to `gemini-3.5-flash-lite`; feedback defaults to `gemini-3.1-pro-preview`. Set `GEMINI_CONVERSATION_MODEL` and `GEMINI_FEEDBACK_MODEL` to override them independently. A legacy `GEMINI_MODEL` setting remains the fallback for either role when its specific setting is absent. The studio defaults to Automatic tone, with optional Marshall or Lainey voice overrides. `GRADIUM_VOICE_ID` remains the fallback for API calls that omit a voice choice. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
 
 ## Gradium hackathon setup
 
@@ -25,23 +25,17 @@ For the submission, identify the features as Gradium WebSocket STT and streamed 
 
 ## Demo
 
-Select **Ask for a raise**, set the difficulty and voice, and start practice. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
+The page opens with a short “Got credits? :)” intro, then a sunflower in the rehearsal studio. The Aura visualizer sits behind the sunflower; focus and full-stage controls adjust the layout. Pick an outfit from **The wardrobe** (click a hanger, use the arrows, or ←/→ on the rail), for example **Bazaar negotiation**, and start practising. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
 
-Click **Start live voice** for hands-free conversation. The microphone stays open while the counterpart speaks; starting to speak interrupts pending responses and scheduled playback. Gradium semantic turn detection plus a short quiet period sends each answer automatically. A one-second quiet fallback handles missing turn signals. Acknowledged flush boundaries retain late transcript words. **Stop live voice**, reset, and finishing close the microphone and connection. The existing **Record your answer** button remains a push-to-talk fallback: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The avatar has idle, listening, thinking and speaking states.
+The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The sunflower’s face mirrors the detected feeling and has listening, thinking and talking states.
 
-Spoken replies stream mono 48 kHz PCM16 into Web Audio playback as chunks arrive, rather than buffering a full WAV before speaking. The transcript still appears as soon as Gemini finishes. "Preparing voice" distinguishes synthesis from Gemini thinking. This reduces the audio download wait; the completed user turn and Gemini generation still precede synthesis. Duplex capture runs simultaneously with playback, but Gemini text generation and speech synthesis do not yet overlap.
+## Voice tonality
 
-Conversational calls use minimal thinking on `gemini-3.5-flash-lite` and low thinking on `gemini-3.8-flash`. Other model overrides retain their own default thinking settings to avoid unsupported parameters. Final feedback retains the model's default reasoning. This favors quick in-character responses over deep reasoning during each turn.
+Each turn, Gemini classifies the tone of the wording of your latest message (`confident`, `calm`, `enthusiastic`, `neutral`, `hesitant`, `nervous`, `defensive`, `frustrated`, `upset`) and picks a tonality for its reply. The page states both in bold, for example “I’m sensing you feel nervous, so I’m adapting a reassuring tone. Hadley is here to train you.” The UI always uses `auto`; the API still accepts a fixed `tonality`, which the server enforces. Tone is judged from words only; Gradium STT returns text, not prosody.
 
-Live sessions use mono PCM in 80 ms frames, Gradium’s stable `default` STT model, and the supported minimum seven-frame transcription delay. The browser obtains a fresh single-use token through the server; the permanent key stays private. Token issuance is restricted to localhost for this account-free demo. Authenticate token issuance before public deployment. Capture requests echo cancellation, noise suppression and automatic gain control; use headphones for the first microphone test. Sessions stop after ten minutes, and individual turns are limited to 4,000 characters.
+Gradium TTS has no tone parameter: tonality is a property of the voice (its `emotion` tag in Studio). Each tonality maps to a catalog en-US voice in `src/lib/tonality.ts`: calm (Holly), reassuring (Hadley), empathic (Drew), friendly (Wendy), confident (Harrison), excited (Quinn), neutral (Kelsey). Override any of them with `GRADIUM_VOICE_<TONALITY>`, for example `GRADIUM_VOICE_CALM`. The studio defaults to **Automatic tone**. Selecting Marshall or Lainey explicitly overrides the tone-based voice; tone classification and the sunflower’s expression still update. Speech without a tonality or voice selection uses `GRADIUM_VOICE_ID`. Replies stream mono 48 kHz PCM16 into Web Audio as chunks arrive. Reset cancels the request and queued playback; speech errors leave the written reply available.
 
-## Reports and local profile
-
-End a conversation to receive a saved report with strengths, improvements, a suggested rewrite, and four coaching scores: clarity, structure, specificity and relevance. Scores range from 1 (needs substantial work) to 5 (strong). Each score includes an exact quote from your answer and a practical next step; the server rejects invented evidence. These are AI coaching estimates based on words, not measurements of personality or vocal delivery. The richer feedback response has an 8,192-token output budget; conversational settings are unchanged.
-
-Reports compare against your latest previous session for the same scenario and difficulty. Custom scenarios also match their description, and interview comparisons match the optional target role. The coach receives the latest matching transcript, its prior assessment and next practice goal. Charts show current/previous scores, four skill trends and expandable answer-level scores; a first session has no fabricated baseline. New reports include source-validated evidence from both conversations, a priority, a drill and a measurable next goal. Practise this answer prepares a custom rehearsal for that question and pre-fills the original answer. Old reports remain readable, but their scoring rubric may differ. **My profile** opens saved history and reports after reload. You can delete individual reports or clear the local history.
-
-The local profile stores completion dates, scenario, difficulty, optional target role, duration, transcript and report under `rehearsal.profile.v1` in localStorage. It keeps the newest 50 sessions, up to 4 MiB. Browser storage failures show a retry action; corrupt data is preserved until you explicitly clear it. Clearing browser data removes the profile, and separate browsers or devices do not share it. No audio or provider credentials are stored in the profile.
+Conversation turns use minimal thinking on `gemini-3.5-flash-lite` and low thinking on `gemini-3.8-flash`; other model overrides retain their default settings. Gemini 3 thinking tokens count against `maxOutputTokens`; at the default level a short turn could spend its 500-token budget thinking and return truncated JSON.
 
 ## Architecture and ownership
 
@@ -62,11 +56,11 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | `GET /api/status` | None | Provider key presence booleans; never keys |
 | `POST /api/voice-token` | None, localhost only | Single-use short-lived `{ token, expires_at }` for browser STT WebSocket |
 | `POST /api/transcribe` | Raw `audio/wav` | `{ text, speech }`, where `speech` contains original Gradium segments and any available segment timing |
-| `POST /api/converse` | Session and message history | `{ reply }` |
-| `POST /api/speak` | `{ text, voiceId?, format? }` | WAV by default; `format: "pcm"` streams `audio/pcm` with `X-Audio-Sample-Rate: 48000` |
+| `POST /api/converse` | Session and message history | `{ reply, userTone, tonality }` |
+| `POST /api/speak` | `{ text, tonality?, voiceId?, format? }` | WAV by default; `format: "pcm"` streams `audio/pcm` with `X-Audio-Sample-Rate: 48000` |
 | `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse, assessment }`; each assessment dimension contains `{ score, evidence, action }` |
 
-Session input: `scenarioId`, `difficulty`, optional `customScenario`, and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
+Session input: `scenarioId`, `difficulty`, optional `customScenario`, optional `tonality` (`auto` by default), and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `flatmate`, `coldcall`, `bazaar`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
 
 Speech voice IDs are `marshall` and `lainey`, mapped to verified public Gradium catalogue IDs on the server. Speech format accepts `wav` or `pcm`. PCM streaming failures after response headers close the stream; the client retains the transcript and shows a speech error. Reset cancels the request and queued playback.
 
@@ -120,7 +114,7 @@ All 130 unit/API tests and 21 browser tests pass. Instrumented service/audio/pro
 - [Gradium STT REST](https://docs.gradium.ai/guides/speech-to-text-rest): raw WAV upload, NDJSON text segments
 - [Gradium TTS REST](https://docs.gradium.ai/guides/text-to-speech-rest): WAV output with `only_audio: true`
 
-Dependencies: Next.js, React, TypeScript, Tailwind CSS, Lucide icons, Google GenAI, Zod. Validation: Vitest, Playwright, ESLint. The avatar is an original SVG implemented in the app.
+Dependencies: Next.js, React, TypeScript, Tailwind CSS, Lucide icons, Google GenAI, Zod. Validation: Vitest, Playwright, ESLint. The sunflower is an original SVG; Aura sits behind it. The wardrobe selects outfits/scenarios, while the Conversation selector retains every existing scenario. Live voice, local profiles, saved reports and speech tracking remain available.
 
 
 ## Interview coach verification — 10 October 2026

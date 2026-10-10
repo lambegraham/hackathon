@@ -1,7 +1,9 @@
-export type ScenarioId = 'interview' | 'raise' | 'relationship' | 'feedback' | 'custom';
+export type ScenarioId = 'interview' | 'raise' | 'relationship' | 'feedback' | 'flatmate' | 'coldcall' | 'bazaar' | 'custom';
 export type Difficulty = 'friendly' | 'neutral' | 'challenging';
 export type SpeechSegment = { text: string; startSeconds?: number; endSeconds?: number };
 export type SpeechMetadata = { source: 'gradium'; segments: SpeechSegment[] };
+export type Tonality = 'calm' | 'reassuring' | 'empathic' | 'friendly' | 'confident' | 'excited' | 'neutral';
+export type UserTone = 'confident' | 'calm' | 'enthusiastic' | 'neutral' | 'hesitant' | 'nervous' | 'defensive' | 'frustrated' | 'upset';
 export type ConversationMessage = {
     role: 'user' | 'assistant';
     content: string;
@@ -11,11 +13,18 @@ export type SessionInput = {
     scenarioId: ScenarioId;
     difficulty: Difficulty;
     customScenario?: string;
+    /** Counterpart voice tonality; 'auto' (default) matches the user's tone. */
+    tonality?: Tonality | 'auto';
     messages: ConversationMessage[];
 };
 export type AssessmentDimension = 'clarity' | 'structure' | 'specificity' | 'relevance';
 export type AssessmentItem = { score: number; evidence: string; action: string };
 export type Assessment = Record<AssessmentDimension, AssessmentItem>;
+export type ConverseReply = {
+    reply: string;
+    userTone: UserTone;
+    tonality: Tonality;
+};
 export type FeedbackReport = {
     coaching?: CoachingReport;
     assessment?: Assessment;
