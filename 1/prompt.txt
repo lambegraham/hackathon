@@ -1,5 +1,1 @@
-what did my old git-workflow skill do, and why isn't it active anymore?
-
----
-
 can you create a skill again that handles complicated merges and rebasing
