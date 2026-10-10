@@ -1,3 +1,3 @@
-# Hackathon
+# Any credits?
 
 Hackathon project workspace.
