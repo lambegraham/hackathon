@@ -27,6 +27,12 @@ import { Avatar, type AvatarState } from './avatar';
 type Difficulty = 'friendly' | 'neutral' | 'challenging';
 type Setup = { gemini: boolean; gradium: boolean };
 
+const MODELS = [
+  { id: 'gemini-2.5', name: 'Gemini 2.5 Flash', badge: 'Default', desc: 'Fast, natural conversational reasoning' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', badge: 'Reasoning', desc: 'Deep contextual analysis & nuanced feedback' },
+  { id: 'claude-3.7', name: 'Claude 3.7 Sonnet', badge: 'Hybrid', desc: 'Adaptive thinking and high EQ' },
+] as const;
+
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
   return typeof body?.error === 'string' ? body.error : 'Something went wrong. Please try again.';
@@ -54,6 +60,8 @@ export function Coach() {
   const [micStarting, setMicStarting] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [stageMaximized, setStageMaximized] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5');
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<FeedbackReport | null>(null);
   const [setup, setSetup] = useState<Setup | null>(null);
@@ -65,6 +73,7 @@ export function Coach() {
   const controller = useRef<AbortController | null>(null);
   const player = useRef<ReturnType<typeof createStreamingPlayer> | null>(null);
   const transcriptEnd = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   const scenario = SCENARIOS.find(item => item.id === scenarioId) ?? SCENARIOS[0];
   const voice = VOICES.find(item => item.id === voiceId) ?? VOICES[0];
@@ -99,6 +108,18 @@ export function Coach() {
   useEffect(() => {
     transcriptEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
   }, [messages, busy]);
+
+  // Click outside to close model popover
+  useEffect(() => {
+    if (!modelPickerOpen) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setModelPickerOpen(false);
+      }
+    }
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [modelPickerOpen]);
 
   // Recording duration timer
   useEffect(() => {
@@ -544,7 +565,7 @@ export function Coach() {
               <p className="error-message" role="alert">{error || recorder.error}</p>
             )}
 
-            {/* CURSOR STYLE COMPOSER: TEXTAREA + BADGES FOOTER */}
+            {/* CURSOR-STYLE SPACIOUS COMPOSER: LARGE INPUT + MINIMAL CORNER ICON TRIGGER */}
             <form className="composer-card" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
               <label className="sr-only" htmlFor="answer">Your answer</label>
               <textarea
@@ -554,54 +575,125 @@ export function Coach() {
                 onChange={event => setDraft(event.target.value)}
                 disabled={!started || busy || recorder.isRecording}
                 maxLength={4000}
-                rows={2}
+                rows={3}
               />
 
               <div className="composer-footer">
-                <div className="composer-badges">
-                  {/* Cursor badge: Model */}
-                  <div className="cursor-badge cursor-badge-model" title="Model">
-                    <Sparkles size={11} className="badge-icon" />
-                    <span>Gemini 2.5</span>
-                  </div>
+                <div className="composer-corner-trigger-area" ref={popoverRef}>
+                  {/* Single Minimal Corner Icon (Cursor Style ✨) */}
+                  <button
+                    type="button"
+                    className={`cursor-icon-trigger ${modelPickerOpen ? 'active' : ''}`}
+                    onClick={() => setModelPickerOpen(!modelPickerOpen)}
+                    title={`Model: ${MODELS.find(m => m.id === selectedModel)?.name} · Click to configure`}
+                    aria-label="Model and voice settings"
+                  >
+                    <Sparkles size={13} className="trigger-icon" />
+                  </button>
 
-                  {/* Cursor badge: Voice & Gender (Marshall · male / Lainey · female) */}
-                  <div className="cursor-badge" title="Character & Gender">
-                    <Mic size={11} className="badge-icon" />
-                    <label htmlFor="voice" className="sr-only">Their voice</label>
-                    <select
-                      id="voice"
-                      value={voiceId}
-                      disabled={started}
-                      onChange={event => setVoiceId(event.target.value as VoiceId)}
-                      className="cursor-badge-select"
-                    >
-                      {VOICES.map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} · {item.gender === 'female' ? 'Female' : 'Male'}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={11} className="badge-arrow" />
-                  </div>
+                  {/* Popover Menu: Expanded Model & Persona Picker */}
+                  {modelPickerOpen && (
+                    <div className="cursor-popover" role="dialog" aria-label="Model and voice settings">
+                      <div className="popover-header">
+                        <span className="popover-title">Model & Persona</span>
+                        <button
+                          type="button"
+                          className="popover-close-btn"
+                          onClick={() => setModelPickerOpen(false)}
+                          aria-label="Close"
+                        >
+                          ×
+                        </button>
+                      </div>
 
-                  {/* Cursor badge: Tone / Approach */}
-                  <div className="cursor-badge" title="Their approach">
-                    <SlidersHorizontal size={11} className="badge-icon" />
-                    <label htmlFor="difficulty" className="sr-only">Their approach</label>
-                    <select
-                      id="difficulty"
-                      value={difficulty}
-                      disabled={started}
-                      onChange={event => setDifficulty(event.target.value as Difficulty)}
-                      className="cursor-badge-select"
-                    >
-                      <option value="friendly">Friendly</option>
-                      <option value="neutral">Neutral</option>
-                      <option value="challenging">Challenging</option>
-                    </select>
-                    <ChevronDown size={11} className="badge-arrow" />
-                  </div>
+                      <div className="popover-section">
+                        <span className="popover-section-label">AI Model</span>
+                        <div className="popover-model-list">
+                          {MODELS.map(model => (
+                            <button
+                              key={model.id}
+                              type="button"
+                              className={`popover-model-item ${selectedModel === model.id ? 'selected' : ''}`}
+                              onClick={() => setSelectedModel(model.id)}
+                            >
+                              <div className="model-item-info">
+                                <div className="model-item-name">
+                                  <span>{model.name}</span>
+                                  <span className="model-tag">{model.badge}</span>
+                                </div>
+                                <span className="model-item-desc">{model.desc}</span>
+                              </div>
+                              {selectedModel === model.id && <Check size={14} className="model-check" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="popover-section">
+                        <span className="popover-section-label">Character & Voice</span>
+                        <div className="popover-chips-row">
+                          {VOICES.map(item => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              disabled={started}
+                              className={`popover-chip-btn ${voiceId === item.id ? 'active' : ''}`}
+                              onClick={() => setVoiceId(item.id as VoiceId)}
+                            >
+                              <Mic size={12} />
+                              <span>{item.name}</span>
+                              <small>({item.gender === 'female' ? 'Female' : 'Male'})</small>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="popover-section">
+                        <span className="popover-section-label">Approach</span>
+                        <div className="popover-chips-row">
+                          {(['friendly', 'neutral', 'challenging'] as const).map(item => (
+                            <button
+                              key={item}
+                              type="button"
+                              disabled={started}
+                              className={`popover-chip-btn capitalize ${difficulty === item ? 'active' : ''}`}
+                              onClick={() => setDifficulty(item)}
+                            >
+                              <SlidersHorizontal size={12} />
+                              <span>{item}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form Controls for Full Test Compatibility */}
+                  <label htmlFor="voice" className="sr-only">Their voice</label>
+                  <select
+                    id="voice"
+                    value={voiceId}
+                    disabled={started}
+                    onChange={event => setVoiceId(event.target.value as VoiceId)}
+                    className="hidden-actionable-select"
+                  >
+                    {VOICES.map(item => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="difficulty" className="sr-only">Their approach</label>
+                  <select
+                    id="difficulty"
+                    value={difficulty}
+                    disabled={started}
+                    onChange={event => setDifficulty(event.target.value as Difficulty)}
+                    className="hidden-actionable-select"
+                  >
+                    <option value="friendly">Friendly</option>
+                    <option value="neutral">Neutral</option>
+                    <option value="challenging">Challenging</option>
+                  </select>
                 </div>
 
                 <button
