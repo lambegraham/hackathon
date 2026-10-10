@@ -368,6 +368,7 @@ export function Coach() {
   const assistantLine = [...messages].reverse().find(message => message.role === 'assistant')?.content;
   const yourLine = [...messages].reverse().find(message => message.role === 'user')?.content;
   const advice = report ?? savedSessions[0]?.report;
+  const shortName: Record<string, string> = { interview: 'Job interview', raise: 'Ask for a raise', relationship: 'Relationship', feedback: 'Feedback', flatmate: 'Flatmate', coldcall: 'Cold call', bazaar: 'Bazaar', custom: 'Your own' };
   const clock = `${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`;
   const showLive = recorder.isRecording || liveActive;
   const alternate = profileOpen || (reportOpen && currentSession);
@@ -396,7 +397,7 @@ export function Coach() {
                     disabled={started}
                     onClick={() => { setScenarioId(item.id); setPracticeQuestion(''); }}
                   >
-                    {item.title}
+                    {shortName[item.id] ?? item.title}
                   </button>
                 ))}
               </div>
@@ -425,15 +426,12 @@ export function Coach() {
               </label>
             </div>
             <button className="call-profile" onClick={openProfile} disabled={started && !report}>My profile</button>
+            {(setupFailed || (setup && !setup.gemini)) && (
+              <p className="call-notice" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Add GEMINI_API_KEY, then restart.'}</p>
+            )}
           </aside>
 
           <section className="call-center">
-            {(setupFailed || (setup && !setup.gemini)) && (
-              <p className="call-notice" role="status">{setupFailed ? 'Could not check service availability. Refresh the page to try again.' : 'Connect Gemini to start practising. Add GEMINI_API_KEY, then restart the app.'}</p>
-            )}
-            {setup?.gemini && !setup.gradium && (
-              <p className="call-notice" role="status">Voice is unavailable until GRADIUM_API_KEY is configured. You can practise by typing.</p>
-            )}
             <header className="call-top">
               <div>
                 <h1>{scenario.title}</h1>
@@ -461,7 +459,7 @@ export function Coach() {
                 <div className="call-lamp" />
                 <div className="call-desk" />
               </div>
-              <Sunflower frame="chest" state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} />
+              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} />
               <video ref={camera.videoRef} className={`flower-self-view${camera.on ? ' on' : ''}`} playsInline muted aria-hidden={!camera.on} aria-label={camera.on ? 'Your camera. Stop camera.' : undefined} onClick={() => { if (camera.on) camera.stop(); }} />
               {assistantLine && (
                 <div className="call-bubble">
@@ -515,21 +513,16 @@ export function Coach() {
           </section>
 
           <aside className="call-advice">
+            <h2>Advice</h2>
+            {advice?.assessment ? (
+              <ul className="call-levels">
+                {COACHING_METRICS.map(({ key, label }) => (
+                  <li key={key}><span>{label}</span><span>{skillLevelLabel(advice.assessment![key].score)}</span></li>
+                ))}
+              </ul>
+            ) : null}
             {advice ? (
-              <>
-                {advice.assessment ? (
-                  <ul className="call-levels">
-                    {COACHING_METRICS.map(({ key, label }) => (
-                      <li key={key}><span>{label}</span><span>{skillLevelLabel(advice.assessment![key].score)}</span></li>
-                    ))}
-                  </ul>
-                ) : null}
-                <ul className="call-tries">
-                  {advice.improvements.map(item => <li key={item}>{item}</li>)}
-                </ul>
-                {report && currentSession && <button className="call-advice-more" onClick={() => setReportOpen(true)}>Full report</button>}
-                {saveError && <p className="call-alert" role="alert">{saveError}</p>}
-              </>
+              <ul>{advice.improvements.map((item, index) => <li key={index}>{item}</li>)}</ul>
             ) : (
               <p>Advice shows after this practice.</p>
             )}
