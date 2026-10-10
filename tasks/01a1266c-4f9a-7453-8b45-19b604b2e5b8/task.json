@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "01a1266c-4f9a-7453-8b45-19b604b2e5b8",
+  "agent_id": "01a1266c-4f9a-7453-8b45-19b604b2e5b8",
+  "subagent_type": "worker",
+  "token_usage": {
+    "input_tokens": 108376,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2958848,
+    "output_tokens": 16506,
+    "api_call_count": 38
+  },
+  "started_at": "2026-10-10T17:26:37.154268+02:00",
+  "completed_at": "2026-10-10T17:40:54.675763+02:00"
+}

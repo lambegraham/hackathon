@@ -1,0 +1,20 @@
+{
+  "tool_use_id": "01a1267f-5593-72d0-ac16-6eee98f7e21a",
+  "agent_id": "01a1267f-5593-72d0-ac16-6eee98f7e21a",
+  "subagent_type": "default",
+  "files": [
+    "src/lib/audio-review.test.ts",
+    "src/lib/server/audio-analysis.test.ts",
+    "src/lib/audio-review.ts",
+    "src/lib/server/audio-analysis.ts"
+  ],
+  "token_usage": {
+    "input_tokens": 49055,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 894592,
+    "output_tokens": 3833,
+    "api_call_count": 15
+  },
+  "started_at": "2026-10-10T17:47:24.236664+02:00",
+  "completed_at": "2026-10-10T17:51:44.734466+02:00"
+}

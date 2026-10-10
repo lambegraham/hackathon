@@ -1,0 +1,19 @@
+{
+  "tool_use_id": "01a1266d-0b73-7da2-b633-579f112f6c11",
+  "agent_id": "01a1266d-0b73-7da2-b633-579f112f6c11",
+  "subagent_type": "worker",
+  "files": [
+    "e2e/audio-review.spec.ts",
+    "src/components/audio-review-report.tsx",
+    "src/components/audio-review.css"
+  ],
+  "token_usage": {
+    "input_tokens": 47478,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3579904,
+    "output_tokens": 14410,
+    "api_call_count": 50
+  },
+  "started_at": "2026-10-10T17:27:25.18034+02:00",
+  "completed_at": "2026-10-10T17:40:54.675805+02:00"
+}
