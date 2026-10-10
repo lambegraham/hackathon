@@ -17,7 +17,7 @@ const providerReportSchema = generatedFeedbackSchema.extend({
 const jsonSchema = z.toJSONSchema(providerReportSchema);
 // Keep only the structural subset accepted by the provider. Full constraints are
 // enforced on its response by feedbackSchema before anything is returned or saved.
-function providerSchema(value: unknown): unknown {
+export function providerSchema(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(providerSchema);
     if (!value || typeof value !== 'object') return value;
     const supported = ['type', 'properties', 'required', 'items', 'enum', 'anyOf'];

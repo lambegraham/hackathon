@@ -37,6 +37,20 @@ Gradium TTS has no tone parameter: tonality is a property of the voice (its `emo
 
 Conversation turns use minimal thinking on `gemini-3.5-flash-lite` and low thinking on `gemini-3.8-flash`; other model overrides retain their default settings. Gemini 3 thinking tokens count against `maxOutputTokens`; at the default level a short turn could spend its 500-token budget thinking and return truncated JSON.
 
+## Background profile and live coach (before and during practice)
+
+Before starting, open **Your background** in the left panel. Upload a CV, a LinkedIn profile saved as PDF, a Notion or Word page exported to PDF, or .txt/.md notes, or paste text. Each source is read once: PDFs are parsed on the server with `unpdf` (scanned PDFs without text are rejected), and the text goes to Gemini (`GEMINI_PROFILE_MODEL`, else `GEMINI_FEEDBACK_MODEL`). Nothing is stored; the profile lives in page memory and disappears on reload. This "background profile" is separate from **My profile**, which holds saved sessions.
+
+The profile groups items as basics, strengths, hard skills, soft skills, what you can do, what your work shows (implicit skills), room for improvement and what to beware of. Every item shows whether the document states it or the coach inferred it, plus the exact line it is based on. The server drops any item whose quote is not found in the document text. Stated strengths and skills start ticked; inferred items, room for improvement and warnings start unticked until you agree. You can edit, remove or add lines. Age is only picked out if you tick the opt-in, and basics are never sent to the live coach. Health, religion, politics, family details, contact details and personality judgements are excluded by instruction. "Not shown in your documents" means missing evidence, not inability.
+
+Add what the conversation is for (a job description or a goal). During practice the live coach shows at most one short comment at a time under the transcript:
+- after each counterpart message, an optional **Good moment to mention** or **Careful** comment based only on ticked items and the target, with up to three keyword chips checked against the item's own words; each item is suggested at most once per session, and most turns get none;
+- while you speak (live voice or recording with live transcript), a **filler words** or **slow down** nudge computed in code from the recognised text. Speech-to-text can omit fillers, and the pace estimate counts pauses as time; thresholds are rules of thumb (`src/lib/live-nudges.ts`).
+
+**Goal tracker.** "Match my profile to this goal" turns the goal into 2–6 fixed checklist points and links each to the ticked profile items that back it; points with no backing are shown as gaps to prepare for. Practice also builds the checklist automatically if you skipped that step. After every answer the coach marks points covered only with an exact quote from that answer (checked in code), and covered points never go back. The always-visible "Next best point" is chosen in code: the first uncovered point backed by your profile, then gaps. Profile suggestions favour uncovered points. Plan and check requests retry once; if they still fail the tracker shows a retry button and the conversation continues. Routes: `POST /api/goal-plan` and `POST /api/goal-check` (`GEMINI_GOAL_MODEL`, else the conversation model).
+
+Comments can be dismissed and set to Normal, Quiet (every second hint, longer gaps) or Off. All coach requests fail silently and never block the conversation. There are no scores or reports here; post-conversation feedback is unchanged.
+
 ## Architecture and ownership
 
 | Area | Files | Team responsibility |
@@ -60,6 +74,8 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | `POST /api/converse` | Session and message history | `{ reply, userTone, tonality }` |
 | `POST /api/speak` | `{ text, tonality?, voiceId?, format? }` | WAV by default; `format: "pcm"` streams `audio/pcm` with `X-Audio-Sample-Rate: 48000` |
 | `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse, assessment }`; each assessment dimension contains `{ score, evidence, action }` |
+| `POST /api/background` | Raw `application/pdf`, `text/plain` or `text/markdown` (≤5 MB); `?personal=1` opts in to age | `{ items, dropped }`; each item `{ kind, text, origin: stated\|inferred, evidence }`, evidence verified against the document text |
+| `POST /api/live-hint` | Scenario, optional target, confirmed background items `{ id, kind, text }`, used item IDs and the last ≤12 messages ending with the counterpart's | `{ comment: { kind: mention\|beware, text, keywords, itemId } \| null }` |
 
 Session input: `scenarioId`, `difficulty`, optional `customScenario`, optional `tonality` (`auto` by default), and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `flatmate`, `coldcall`, `bazaar`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
 
