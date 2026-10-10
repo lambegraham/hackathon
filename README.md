@@ -8,7 +8,7 @@ Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b
 
 Use Node.js 22.21 or newer. Install with `npm ci`, copy `.env.example` to `.env.local`, then set `GEMINI_API_KEY` and `GRADIUM_API_KEY`. Run `npm run dev` and open http://127.0.0.1:3000.
 
-Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. `GEMINI_MODEL` defaults to `gemini-2.5-flash` from the supplied plan. Set it to a model available to your event account. `GRADIUM_VOICE_ID` defaults to the voice in Gradium's REST example; replace it with your Studio voice if needed. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
+Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. `GEMINI_MODEL` defaults to `gemini-3.8-flash` for both conversation and feedback. Set it to a model available to your event account. `GRADIUM_VOICE_ID` defaults to the voice in Gradium's REST example; replace it with your Studio voice if needed. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
 
 ## Demo
 
@@ -55,11 +55,15 @@ The plan's journeys map to WAV encoding tests, mocked provider-route tests, and 
 | Guarantee | Check | Result |
 | --- | --- | --- |
 | Genuine PCM WAV, downsampling, bounded duration | `src/lib/audio.test.ts` | 6 tests pass |
-| Full history, provider contracts, feedback shape, invalid inputs, safe failures | `src/lib/server/routes.test.ts` | 16 tests pass |
+| Full history, provider contracts, model selection, feedback shape, invalid inputs, safe failures | `src/lib/server/routes.test.ts` | 18 tests pass |
 | Three-turn rehearsal, audio playback, feedback, reset, missing setup, speech failures, mobile layout, microphone startup race | `e2e/coach.spec.ts` | 7 tests pass |
 | Type safety, lint, production compilation | `npm run typecheck`, `npm run lint`, `npm run build` | Pass |
 
 `npm run test:coverage`: 95.16% statements and 91.12% branches in the instrumented service/audio scope. UI and recorder lifecycle are exercised by browser tests, not included in that percentage. `npm audit` after dependency setup and the final production-only audit reported zero vulnerabilities. Reviewer found no remaining blocking issue after the microphone fix. Live provider calls remain unverified because credentials were not configured. The worklet may omit the final partial 1,024-sample batch (up to about 21 ms at 48 kHz) when recording stops.
+
+### Model upgrade verification — 10 October 2026
+
+The requested upgrade replaces Gemini 2.5 Flash with `gemini-3.8-flash` for conversation and feedback while preserving `GEMINI_MODEL` overrides. The parameterized API regression first failed with `expected 'gemini-2.5-flash' to be 'gemini-3.8-flash'`, then passed after the change (`npm test -- src/lib/server/routes.test.ts`: 18 passed). `npm run test:coverage`: 24 passed, 95.16% statements and 91.12% branches in the instrumented service/audio scope. Typecheck and lint pass. A synthetic live SDK request using the local configuration returned text with finish reason `STOP`; this confirms model access, not a full voice rehearsal or live structured feedback. No checkpoint commits were created.
 
 ## Provider references
 

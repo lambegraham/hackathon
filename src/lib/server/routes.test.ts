@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const generateContent = vi.hoisted(() => vi.fn());
 vi.mock('@google/genai', () => ({ GoogleGenAI: class {
         models = { generateContent };
@@ -64,6 +64,19 @@ describe('coach API', () => {
         generateContent.mockReset();
         process.env.GEMINI_API_KEY = 'test';
         process.env.GRADIUM_API_KEY = 'test';
+        vi.stubEnv('GEMINI_MODEL', undefined);
+    });
+    afterEach(() => vi.unstubAllEnvs());
+    it.each([undefined, 'event-model-override'])('uses the upgraded default or configured model (%s) for conversation and feedback', async (model) => {
+        vi.stubEnv('GEMINI_MODEL', model);
+        generateContent.mockResolvedValueOnce({ text: 'Tell me more.' }).mockResolvedValueOnce({ text: JSON.stringify({
+            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.'
+        }) });
+        expect((await converse(request(input))).status).toBe(200);
+        expect((await feedback(request(input))).status).toBe(200);
+        for (const [call] of generateContent.mock.calls) {
+            expect(call.model).toBe(model ?? 'gemini-3.8-flash');
+        }
     });
     it('passes full history to Gemini and returns reply', async () => {
         generateContent.mockResolvedValue({ text: 'What was your contribution?' });
