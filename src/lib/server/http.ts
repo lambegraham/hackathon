@@ -12,7 +12,10 @@ export function resetRateLimit() {
 }
 export function guard(request: Request) {
     const origin = request.headers.get('origin');
-    if ((origin && origin !== new URL(request.url).origin) || request.headers.get('sec-fetch-site') === 'cross-site')
+    const url = new URL(request.url);
+    // Next normalizes loopback URLs to localhost; Host retains the browser's authority.
+    const expectedOrigin = `${url.protocol}//${request.headers.get('host') ?? url.host}`;
+    if ((origin && origin !== expectedOrigin) || request.headers.get('sec-fetch-site') === 'cross-site')
         throw new ApiError(403, 'Only same-origin requests are allowed.');
     if (Date.now() - windowStart >= 60000)
         resetRateLimit();

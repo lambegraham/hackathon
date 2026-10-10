@@ -10,6 +10,19 @@ Use Node.js 22.21 or newer. Install with `npm ci`, copy `.env.example` to `.env.
 
 Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. `GEMINI_MODEL` defaults to `gemini-3.8-flash` for both conversation and feedback. Set it to a model available to your event account. `GRADIUM_VOICE_ID` defaults to the voice in Gradium's REST example; replace it with your Studio voice if needed. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
 
+## Gradium hackathon setup
+
+The [hackathon guide](https://mesquite-pyrite-bca.notion.site/redeem-coupon) funds the voice integration already wired into this app: recorded answer → Gradium Speech-to-Text → Gemini reply → Gradium Text-to-Speech → spoken counterpart. The coupon is redeemed in your Gradium account; it is not an application API or a source of conversation facts.
+
+1. Get the event's private redemption link from the organizer and redeem it in [Gradium Studio](https://studio.gradium.ai/), using the same email as your hackathon registration.
+2. Confirm the credited balance in [Billing](https://studio.gradium.ai/platform/billing), then create a key in [API Keys](https://studio.gradium.ai/platform/api-keys).
+3. Set `GRADIUM_API_KEY` in the project's ignored `.env.local` file and restart `npm run dev`. Keep the coupon and key out of the repository and browser code.
+4. With the app running at `http://127.0.0.1:3000`, run `npm run check:gradium`. If Next chooses a different port, set `APP_URL`, for example `APP_URL=http://127.0.0.1:3001 npm run check:gradium`. This makes one short, credit-consuming synthesis call and transcribes that generated audio through our real app routes. It sends a fixed test sentence, not your conversations, and prints no credentials.
+
+For a distinctive counterpart, use [Voice Design](https://studio.gradium.ai/voices/design) to create and save a synthetic voice, then put its permanent `voice_id` in `GRADIUM_VOICE_ID` and restart the app. The existing catalog voice works without this step. Example description: “A calm English-speaking hiring manager, clear diction, measured pace, warm but professional.”
+
+For the submission, identify the features as Gradium REST STT and TTS, include the selected voice ID, and explain the flow above. TTS currently omits `model_name`, so Gradium chooses its production default; see the [TTS guide](https://docs.gradium.ai/guides/text-to-speech-rest). Coupon redemption, available balance and actual provider access must be checked in your account. The voice check confirms the API path; also try a microphone turn to check recording and playback.
+
 ## Demo
 
 Select **Ask for a raise**, set the difficulty, and start practice. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
