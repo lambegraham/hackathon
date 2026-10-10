@@ -113,7 +113,7 @@ test('speech stops playing audio immediately while keeping the live microphone o
   await page.getByRole('button', { name: 'Start live voice' }).click();
   await expect(page.getByRole('button', { name: 'Stop live voice' })).toBeVisible();
   await say(page, 'My first answer');
-  await expect(page.getByText('Marshall is speaking', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sunflower is speaking', { exact: true })).toBeVisible();
   await interrupt(page);
   await expect(page.getByText('Listening · you can interrupt anytime', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Your answer')).toBeEnabled();
