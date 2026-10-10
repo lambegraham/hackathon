@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4K8R17W3NR10NTR9VCKZD2F",
   "strategy": "manual-commit",
   "branch": "feat/voice-ui-opening",
-  "checkpoints_count": 6,
+  "checkpoints_count": 8,
   "files_touched": [
     "e2e/coach.spec.ts",
     "e2e/duplex.spec.ts",
@@ -25,14 +25,28 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 899978,
+    "input_tokens": 975996,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 35203584,
-    "output_tokens": 76308,
-    "api_call_count": 293,
+    "cache_read_tokens": 39663744,
+    "output_tokens": 88337,
+    "api_call_count": 332,
+    "subagent_tokens": {
+      "input_tokens": 98079,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 3082112,
+      "output_tokens": 13546,
+      "api_call_count": 47
+    },
     "subagent_tokens_complete": false
   }
 }

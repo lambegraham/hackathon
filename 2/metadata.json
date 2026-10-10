@@ -1,0 +1,103 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K8R17W3NR10NTR9VCKZD2F",
+  "session_id": "01a12657-4a9a-7ed0-8840-5cb04ee51881",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T16:01:23.149181Z",
+  "branch": "feat/voice-ui-opening",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "e2e/coach.spec.ts",
+    "e2e/duplex.spec.ts",
+    "src/app/globals.css",
+    "src/components/coach.tsx"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-astra",
+  "turn_id": "9dd2c87454a3",
+  "checkpoint_transcript_start": 156,
+  "transcript_lines_at_start": 156,
+  "compact_transcript_start": 15,
+  "token_usage": {
+    "input_tokens": 76018,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 4460160,
+    "output_tokens": 12029,
+    "api_call_count": 39,
+    "subagent_tokens": {
+      "input_tokens": 98079,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 3082112,
+      "output_tokens": 13546,
+      "api_call_count": 47
+    },
+    "subagent_tokens_complete": true
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T16:01:23.078324Z",
+    "agent_lines": 103,
+    "agent_removed": 10,
+    "human_added": 0,
+    "human_modified": 13,
+    "human_removed": 90,
+    "total_committed": 116,
+    "total_lines_changed": 217,
+    "agent_percentage": 52.07373271889401,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 256,
+      "user_lines_removed": 248,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "Graham-SWE-Quick-Reference.md": 26,
+        "e2e/profile.spec.ts": 66,
+        "src/lib/profile.test.ts": 92,
+        "src/lib/server/feedback.test.ts": 72
+      },
+      "user_removed_per_file": {
+        "e2e/profile.spec.ts": 102,
+        "src/lib/profile.test.ts": 146
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 476,
+      "user_lines_removed": 10,
+      "agent_lines_added": 816,
+      "agent_lines_removed": 41,
+      "user_added_per_file": {
+        "e2e/audio-review.spec.ts": 71,
+        "src/hooks/use-voice-session.ts": 14,
+        "src/lib/analyse-session-audio.test.ts": 30,
+        "src/lib/analyse-session-audio.ts": 27,
+        "src/lib/audio-review.test.ts": 25,
+        "src/lib/audio-storage.test.ts": 24,
+        "src/lib/audio-storage.ts": 70,
+        "src/lib/audio.ts": 2,
+        "src/lib/duplex-session.test.ts": 23,
+        "src/lib/duplex-session.ts": 19,
+        "src/lib/profile.test.ts": 7,
+        "src/lib/profile.ts": 4,
+        "src/lib/server/audio-analysis.test.ts": 81,
+        "src/lib/session-audio.test.ts": 1,
+        "src/lib/session-audio.ts": 78
+      },
+      "user_removed_per_file": {
+        "src/hooks/use-voice-session.ts": 2,
+        "src/lib/audio.ts": 2,
+        "src/lib/duplex-session.test.ts": 2,
+        "src/lib/duplex-session.ts": 2,
+        "src/lib/profile.ts": 1,
+        "src/lib/session-audio.test.ts": 1
+      }
+    }
+  ]
+}
