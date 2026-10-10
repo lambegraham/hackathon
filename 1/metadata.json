@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JXAPA03CY7SV6AE6E06GC3",
+  "session_id": "01a125c3-5726-7fc0-9935-de2492972595",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T12:41:45.338439Z",
+  "branch": "feat/streaming-speech-voices",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/lib/voices.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "ac781f81eb16",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 80121,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1344128,
+    "output_tokens": 7237,
+    "api_call_count": 23
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T12:41:45.326012Z",
+    "agent_lines": 5,
+    "agent_removed": 0,
+    "human_added": 575,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 580,
+    "total_lines_changed": 633,
+    "agent_percentage": 0.7898894154818324,
+    "metric_version": 2
+  }
+}
