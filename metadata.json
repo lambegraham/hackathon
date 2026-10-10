@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4JWD77W8N0DAEKMXT3X1MZ1",
   "strategy": "manual-commit",
   "branch": "feat/conversation-coach",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": null,
   "sessions": [
     {
@@ -12,14 +12,21 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 246501,
+    "input_tokens": 251460,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 12502016,
-    "output_tokens": 17096,
-    "api_call_count": 94,
+    "cache_read_tokens": 12700032,
+    "output_tokens": 17431,
+    "api_call_count": 97,
     "subagent_tokens_complete": false
   }
 }

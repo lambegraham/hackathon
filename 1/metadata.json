@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JWD77W8N0DAEKMXT3X1MZ1",
+  "session_id": "01a125c3-5726-7fc0-9935-de2492972595",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T12:25:42.758026Z",
+  "branch": "feat/conversation-coach",
+  "checkpoints_count": 1,
+  "files_touched": [],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "ac781f81eb16",
+  "checkpoint_transcript_start": 76,
+  "transcript_lines_at_start": 76,
+  "compact_transcript_start": 12,
+  "token_usage": {
+    "input_tokens": 4959,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 198016,
+    "output_tokens": 335,
+    "api_call_count": 3
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
