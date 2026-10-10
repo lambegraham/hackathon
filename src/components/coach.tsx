@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
-  Bot,
   Check,
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   Maximize2,
   MessageCircle,
   Mic,
@@ -55,7 +53,6 @@ export function Coach() {
   const [busy, setBusy] = useState(false);
   const [micStarting, setMicStarting] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [settingsCollapsed, setSettingsCollapsed] = useState(false);
   const [stageMaximized, setStageMaximized] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<FeedbackReport | null>(null);
@@ -493,80 +490,6 @@ export function Coach() {
 
           {/* RIGHT: TRANSCRIPT PANEL */}
           <section className="transcript-panel">
-            {/* Top Collapsible Settings Capsule (Model, Voice, Approach) */}
-            <div className={`settings-capsule-container ${settingsCollapsed ? 'is-collapsed' : 'is-expanded'}`}>
-              {settingsCollapsed ? (
-                <button
-                  type="button"
-                  className="settings-capsule-collapsed"
-                  onClick={() => setSettingsCollapsed(false)}
-                  title="Expand options"
-                  aria-label="Expand voice, approach and model options"
-                >
-                  <span className="capsule-icon-wrap">
-                    <SlidersHorizontal size={13} />
-                  </span>
-                  <span className="capsule-collapsed-summary">
-                    {VOICES.find(v => v.id === voiceId)?.label || 'Voice'} · <span className="capitalize">{difficulty}</span> · Gemini 2.5
-                  </span>
-                  <span className="capsule-arrow-btn">
-                    <ChevronDown size={13} />
-                  </span>
-                </button>
-              ) : (
-                <div className="settings-capsule-expanded">
-                  <div className="capsule-controls-row">
-                    <div className="setting-chip" title="Voice">
-                      <Mic size={13} className="chip-icon" />
-                      <label htmlFor="voice" className="chip-label">Their voice</label>
-                      <select
-                        id="voice"
-                        value={voiceId}
-                        disabled={started}
-                        onChange={event => setVoiceId(event.target.value as VoiceId)}
-                        className="chip-select"
-                      >
-                        {VOICES.map(item => (
-                          <option key={item.id} value={item.id}>{item.label}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="setting-chip" title="Approach">
-                      <SlidersHorizontal size={13} className="chip-icon" />
-                      <label htmlFor="difficulty" className="chip-label">Their approach</label>
-                      <select
-                        id="difficulty"
-                        value={difficulty}
-                        disabled={started}
-                        onChange={event => setDifficulty(event.target.value as Difficulty)}
-                        className="chip-select"
-                      >
-                        <option value="friendly">Friendly</option>
-                        <option value="neutral">Neutral</option>
-                        <option value="challenging">Challenging</option>
-                      </select>
-                    </div>
-
-                    <div className="setting-chip model-chip" title="Active Model">
-                      <Bot size={13} className="chip-icon" />
-                      <span className="chip-text">Gemini 2.5</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="capsule-collapse-action"
-                    onClick={() => setSettingsCollapsed(true)}
-                    title="Collapse options"
-                    aria-label="Collapse options"
-                  >
-                    <ChevronUp size={13} />
-                  </button>
-                </div>
-              )}
-            </div>
-
             <div className="panel-heading">
               <div className="transcript-title">
                 <Volume2 size={15} />
@@ -621,20 +544,74 @@ export function Coach() {
               <p className="error-message" role="alert">{error || recorder.error}</p>
             )}
 
-            <form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
+            {/* CURSOR STYLE COMPOSER: TEXTAREA + BADGES FOOTER */}
+            <form className="composer-card" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
               <label className="sr-only" htmlFor="answer">Your answer</label>
               <textarea
                 id="answer"
-                placeholder={started ? 'Or type your answer…' : 'Start a session to join'}
+                placeholder={started ? 'Type your message…' : 'Start a session to join'}
                 value={draft}
                 onChange={event => setDraft(event.target.value)}
                 disabled={!started || busy || recorder.isRecording}
                 maxLength={4000}
                 rows={2}
               />
-              <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}>
-                <Send size={16} />
-              </button>
+
+              <div className="composer-footer">
+                <div className="composer-badges">
+                  {/* Cursor badge: Model */}
+                  <div className="cursor-badge cursor-badge-model" title="Model">
+                    <Sparkles size={11} className="badge-icon" />
+                    <span>Gemini 2.5</span>
+                  </div>
+
+                  {/* Cursor badge: Voice & Gender (Marshall · male / Lainey · female) */}
+                  <div className="cursor-badge" title="Character & Gender">
+                    <Mic size={11} className="badge-icon" />
+                    <label htmlFor="voice" className="sr-only">Their voice</label>
+                    <select
+                      id="voice"
+                      value={voiceId}
+                      disabled={started}
+                      onChange={event => setVoiceId(event.target.value as VoiceId)}
+                      className="cursor-badge-select"
+                    >
+                      {VOICES.map(item => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} · {item.gender === 'female' ? 'Female' : 'Male'}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} className="badge-arrow" />
+                  </div>
+
+                  {/* Cursor badge: Tone / Approach */}
+                  <div className="cursor-badge" title="Their approach">
+                    <SlidersHorizontal size={11} className="badge-icon" />
+                    <label htmlFor="difficulty" className="sr-only">Their approach</label>
+                    <select
+                      id="difficulty"
+                      value={difficulty}
+                      disabled={started}
+                      onChange={event => setDifficulty(event.target.value as Difficulty)}
+                      className="cursor-badge-select"
+                    >
+                      <option value="friendly">Friendly</option>
+                      <option value="neutral">Neutral</option>
+                      <option value="challenging">Challenging</option>
+                    </select>
+                    <ChevronDown size={11} className="badge-arrow" />
+                  </div>
+                </div>
+
+                <button
+                  aria-label="Send answer"
+                  disabled={!started || busy || recorder.isRecording || !draft.trim()}
+                  className="composer-send-btn"
+                >
+                  <Send size={15} />
+                </button>
+              </div>
             </form>
           </section>
         </div>
