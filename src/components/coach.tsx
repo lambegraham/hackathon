@@ -168,11 +168,24 @@ export function Coach() {
     }
   }
 
-  function begin() {
-    if (!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())) return;
-    updateMessages([{ role: 'assistant', content: practiceQuestion || scenario.openingLine }]);
+  async function begin() {
+    if (lock.current || !setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())) return;
+    const opening = practiceQuestion || scenario.openingLine;
+    updateMessages([{ role: 'assistant', content: opening }]);
     sessionMeta.current = { id: crypto.randomUUID(), startedAt: new Date().getTime() };
     setStarted(true); setError('');
+    if (!setup.gradium) return;
+    const token = ++generation.current;
+    const abort = new AbortController(); controller.current = abort;
+    lock.current = true; setBusy(true); setPreparingVoice(true);
+    try {
+      await getPlayer().prepare();
+      if (token === generation.current && !abort.signal.aborted) await speak(opening, token, abort.signal);
+    } catch {
+      if (token === generation.current && !abort.signal.aborted) setError('Audio could not start. You can continue by typing.');
+    } finally {
+      if (token === generation.current) { lock.current = false; setBusy(false); setPreparingVoice(false); setState('idle'); }
+    }
   }
 
   async function sendTurn(text: string, token: number, signal: AbortSignal, speechReady: boolean, speech?: SpeechMetadata) {
@@ -533,15 +546,15 @@ export function Coach() {
                   )}
 
                   <div className="record-container">
-                    <button className={`record-button ${liveActive ? 'recording' : ''}`} disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
+                    <button className={`record-button ${liveActive ? 'recording' : ''}`} aria-describedby="live-voice-help" disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
                       {liveActive || liveStarting ? <Square size={18} /> : <Mic size={20} />}
                       <span>{liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'}</span>
                     </button>
-                    <p className="record-help">{liveActive ? 'Speak naturally. Pause to send, or interrupt your counterpart.' : 'Hands-free conversation, with automatic turn taking.'}</p>
+                    <p className="record-help" id="live-voice-help">{liveActive ? 'Speak naturally. Pause to send, or interrupt your counterpart.' : 'Hands-free conversation, with automatic turn taking.'}</p>
                   </div>
                   <div className="record-container">
                     <button
-                      className={`record-button ${recorder.isRecording ? 'recording' : ''}`}
+                      className={`record-button record-button-secondary ${recorder.isRecording ? 'recording' : ''}`}
                       disabled={busy || liveActive || liveStarting || !setup?.gradium}
                       onClick={toggleRecording}
                     >
