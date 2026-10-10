@@ -16,6 +16,11 @@ import { ProfileDashboard } from './profile-dashboard';
 import { Sunflower } from './sunflower';
 import { OUTFITS } from './outfits';
 import { tonalityById, userToneLabel } from '@/lib/tonality';
+import { useBackground } from '@/hooks/use-background';
+import { useLiveCoach } from '@/hooks/use-live-coach';
+import { MIN_GOAL_CHARS, useGoalTracker, type GoalContext } from '@/hooks/use-goal-tracker';
+import { BackgroundPanel } from './background-panel';
+import { LiveComment } from './live-comment';
 import './profile.css';
 
 type Difficulty = 'friendly' | 'neutral' | 'challenging';
@@ -76,6 +81,11 @@ export function Coach() {
   const [setupFailed, setSetupFailed] = useState(false);
   const recorder = useVoiceSession();
   const camera = useFlowerCamera();
+  const bg = useBackground();
+  const tracker = useGoalTracker();
+  const goalContext: GoalContext = { scenarioId, difficulty, customScenario, target: bg.target, items: bg.live };
+  const goalStale = tracker.isStale(goalContext);
+  const coach = useLiveCoach({ items: bg.live, target: bg.target, sensitivity: bg.sensitivity, scenarioId, difficulty, customScenario, goals: tracker.points.map(point => ({ label: point.label, covered: Boolean(tracker.covered[point.id]) })) });
   const lock = useRef(false);
   const generation = useRef(0);
   const sessionGeneration = useRef(0);
@@ -144,6 +154,8 @@ export function Coach() {
   function reset() {
     camera.stop();
     stopLive();
+    coach.reset();
+    tracker.resetProgress();
     recorder.cancelRecording();
     lock.current = false;
     setTones({}); setRecordingSeconds(0);
@@ -171,19 +183,27 @@ export function Coach() {
 
   function begin() {
     if (!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())) return;
-    updateMessages([{ role: 'assistant', content: practiceQuestion || scenario.openingLine }]);
+    const opening = practiceQuestion || scenario.openingLine;
+    const openingMessages: ConversationMessage[] = [{ role: 'assistant', content: opening }];
+    updateMessages(openingMessages); coach.reset(); void coach.requestHint(openingMessages);
+    tracker.resetProgress();
+    if (bg.target.trim().length >= MIN_GOAL_CHARS && (tracker.status === 'idle' || tracker.status === 'error' || goalStale)) void tracker.plan(goalContext);
     sessionMeta.current = { id: crypto.randomUUID(), startedAt: new Date().getTime() };
     setStarted(true); setError('');
   }
 
   async function sendTurn(text: string, token: number, signal: AbortSignal, speechReady: boolean, speech?: SpeechMetadata) {
+    const question = messagesRef.current.filter(message => message.role === 'assistant').at(-1)?.content ?? '';
     const next: ConversationMessage[] = [...messagesRef.current, { role: 'user', content: text, ...(speech ? {speech} : {}) }];
-    setPartial(''); updateMessages(next); setDraft(''); setState('thinking');
+    setPartial(''); coach.clear(); updateMessages(next); setDraft(''); setState('thinking');
+    void tracker.check(question, text, bg.target);
     const response = await fetch('/api/converse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty, customScenario, tonality: 'auto', messages: textMessages(next) }), signal });
     if (!response.ok) throw new Error(await responseError(response));
     const { reply, userTone, tonality }: Partial<ConverseReply> & { reply: string } = await response.json();
     if (token !== generation.current) return;
-    updateMessages([...next, { role: 'assistant', content: reply }]);
+    const withReply: ConversationMessage[] = [...next, { role: 'assistant', content: reply }];
+    updateMessages(withReply);
+    void coach.requestHint(withReply);
     setTones({ userTone, tonality });
     if (speechReady) await speak(reply, token, signal, tonality);
   }
@@ -231,7 +251,7 @@ export function Coach() {
     lock.current = true; setBusy(true); setMicStarting(true);
     setError(''); setPartial(''); stopAudio();
     setRecordingSeconds(0);
-    try { await recorder.startRecording(text => { if (token === generation.current) setPartial(text); }); } catch { /* Recorder displays its actionable error. */ }
+    try { await recorder.startRecording(text => { if (token === generation.current) { setPartial(text); coach.onPartial(text); } }); } catch { /* Recorder displays its actionable error. */ }
     finally {
       if (token === generation.current) {
         lock.current = false; setBusy(false); setMicStarting(false); setPreparingVoice(false);
@@ -297,7 +317,7 @@ export function Coach() {
       if (session !== sessionGeneration.current) return;
       const capture = createDuplexSession({
         onSpeechStart: () => { if (session === sessionGeneration.current) interruptResponse(); },
-        onTranscript: text => { if (session === sessionGeneration.current) setPartial(text); },
+        onTranscript: text => { if (session === sessionGeneration.current) { setPartial(text); coach.onPartial(text); } },
         onTurn: (text, speech) => {
           if (session !== sessionGeneration.current || !live.current) return;
           if (lock.current) interruptResponse();
@@ -509,6 +529,10 @@ export function Coach() {
             {keyMissing && (
               <p className="call-key" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Add GEMINI_API_KEY, then restart.'}</p>
             )}
+            <div className="bg-host">
+              <BackgroundPanel bg={bg} started={started} tracker={tracker} goalStale={goalStale} onMatch={() => void tracker.plan(goalContext)} />
+            </div>
+            <LiveComment comment={coach.comment} onDismiss={coach.dismiss} />
           </aside>
         </>
       )}
