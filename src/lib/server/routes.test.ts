@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const generateContent = vi.hoisted(() => vi.fn());
-vi.mock('@google/genai', () => ({ GoogleGenAI: class {
-        models = { generateContent };
-    } }));
+vi.mock('@google/genai', async importOriginal => ({
+    ...(await importOriginal<typeof import('@google/genai')>()),
+    GoogleGenAI: class { models = { generateContent }; }
+}));
 import { POST as converse } from '@/app/api/converse/route';
 import { POST as feedback } from '@/app/api/feedback/route';
 import { POST as transcribe } from '@/app/api/transcribe/route';
@@ -65,18 +66,43 @@ describe('coach API', () => {
         process.env.GEMINI_API_KEY = 'test';
         process.env.GRADIUM_API_KEY = 'test';
         vi.stubEnv('GEMINI_MODEL', undefined);
+        vi.stubEnv('GEMINI_CONVERSATION_MODEL', undefined);
+        vi.stubEnv('GEMINI_FEEDBACK_MODEL', undefined);
     });
     afterEach(() => vi.unstubAllEnvs());
-    it.each([undefined, 'event-model-override'])('uses the upgraded default or configured model (%s) for conversation and feedback', async (model) => {
-        vi.stubEnv('GEMINI_MODEL', model);
+    it.each([
+        [undefined, undefined, undefined, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'],
+        ['global-model', undefined, undefined, 'global-model', 'global-model'],
+        ['global-model', 'conversation-model', 'feedback-model', 'conversation-model', 'feedback-model'],
+        ['global-model', 'conversation-model', undefined, 'conversation-model', 'global-model'],
+        ['global-model', undefined, 'feedback-model', 'global-model', 'feedback-model']
+    ])('routes conversation and feedback models with explicit role override precedence (%s, %s, %s)', async (globalModel, conversationModel, feedbackModel, expectedConversation, expectedFeedback) => {
+        vi.stubEnv('GEMINI_MODEL', globalModel);
+        vi.stubEnv('GEMINI_CONVERSATION_MODEL', conversationModel);
+        vi.stubEnv('GEMINI_FEEDBACK_MODEL', feedbackModel);
         generateContent.mockResolvedValueOnce({ text: 'Tell me more.' }).mockResolvedValueOnce({ text: JSON.stringify({
             summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.'
         }) });
         expect((await converse(request(input))).status).toBe(200);
         expect((await feedback(request(input))).status).toBe(200);
-        for (const [call] of generateContent.mock.calls) {
-            expect(call.model).toBe(model ?? 'gemini-3.8-flash');
-        }
+        expect(generateContent.mock.calls[0][0].model).toBe(expectedConversation);
+        expect(generateContent.mock.calls[1][0].model).toBe(expectedFeedback);
+        expect(generateContent.mock.calls[1][0].config).not.toHaveProperty('thinkingConfig');
+        expect(generateContent.mock.calls[1][0].config.maxOutputTokens).toBe(1400);
+    });
+    it.each([
+        [undefined, 'MINIMAL'],
+        ['gemini-3.5-flash-lite', 'MINIMAL'],
+        ['gemini-3.8-flash', 'LOW'],
+        ['event-model-override', undefined]
+    ])('uses supported fast conversation thinking only for known models (%s)', async (model, thinkingLevel) => {
+        vi.stubEnv('GEMINI_MODEL', model);
+        generateContent.mockResolvedValue({ text: 'Tell me more.' });
+        expect((await converse(request(input))).status).toBe(200);
+        const config = generateContent.mock.calls[0][0].config;
+        if (thinkingLevel) expect(config.thinkingConfig).toEqual({ thinkingLevel });
+        else expect(config).not.toHaveProperty('thinkingConfig');
+        expect(config.maxOutputTokens).toBe(400);
     });
     it('passes full history to Gemini and returns reply', async () => {
         generateContent.mockResolvedValue({ text: 'What was your contribution?' });

@@ -1,4 +1,5 @@
 import { ApiError, requireKey } from './http';
+import { VOICES, type VoiceId } from '../voices';
 export function validateWav(bytes: Uint8Array, maxSeconds = 60) {
     const invalid = () => new ApiError(400, 'Send a valid PCM WAV recording of 60 seconds or less.');
     if (bytes.length < 44)
@@ -98,10 +99,10 @@ export async function transcribe(bytes: Uint8Array) {
         return { text };
     });
 }
-export async function speak(text: string) {
+export async function speak(text: string, voiceId?: VoiceId) {
     return await gradium('tts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            text, voice_id: process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ', output_format: 'wav', only_audio: true
+            text, voice_id: providerVoice(voiceId), output_format: 'wav', only_audio: true
         })
     }, async (response) => {
         const bytes = finalizeStreamingWav(await boundedResponse(response, 16 * 1024 * 1024));
@@ -136,4 +137,81 @@ function finalizeStreamingWav(source: Uint8Array) {
         offset += 8 + size + (size % 2);
     }
     return bytes;
+}
+
+function providerVoice(voiceId?: VoiceId) {
+    if (voiceId === undefined)
+        return process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ';
+    const voice = VOICES.find(item => item.id === voiceId);
+    if (!voice)
+        throw new ApiError(400, 'Choose a supported voice.');
+    return voice.providerId;
+}
+
+export async function streamSpeech(text: string, voiceId?: VoiceId, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+    const apiKey = requireKey('GRADIUM_API_KEY');
+    const voice = providerVoice(voiceId);
+    const controller = new AbortController();
+    const failed = () => new ApiError(502, 'Gradium could not complete the audio stream. Please try again.');
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let length = 0;
+    const abort = () => {
+        controller.abort();
+        void reader?.cancel().catch(() => undefined);
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) controller.abort();
+    const timer = setTimeout(abort, 25000);
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', abort); };
+    const stop = async () => { cleanup(); controller.abort(); await reader?.cancel().catch(() => undefined); };
+    // Cancellation must also interrupt a reader that has stalled between chunks.
+    const read = async () => {
+        if (controller.signal.aborted) throw failed();
+        let onAbort!: () => void;
+        const aborted = new Promise<never>((_resolve, reject) => {
+            onAbort = () => reject(failed());
+            controller.signal.addEventListener('abort', onAbort, { once: true });
+        });
+        try {
+            const chunk = await Promise.race([reader!.read(), aborted]);
+            if (controller.signal.aborted) throw failed();
+            if (chunk.done) {
+                if (!length || length % 2 !== 0) throw new ApiError(502, 'Gradium returned invalid audio. Please try again.');
+            } else {
+                length += chunk.value.byteLength;
+                if (length > 16 * 1024 * 1024) throw new ApiError(502, 'Gradium response was too large.');
+            }
+            return chunk;
+        } finally { controller.signal.removeEventListener('abort', onAbort); }
+    };
+    try {
+        const response = await fetch('https://api.gradium.ai/api/post/speech/tts', {
+            method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+            body: JSON.stringify({ text, voice_id: voice, output_format: 'pcm', only_audio: true }), signal: controller.signal
+        });
+        if (!response.ok) throw new ApiError(502, 'Gradium could not process the request. Please try again.');
+        if (response.body) reader = response.body.getReader();
+        if (!reader || response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'audio/pcm')
+            throw new ApiError(502, 'Gradium returned invalid audio. Please try again.');
+        // Validate the first read before returning a successful HTTP response.
+        let first = await read();
+        while (!first.done && !first.value.byteLength) first = await read();
+        return new ReadableStream<Uint8Array>({
+            start(output) { output.enqueue(first.value!); },
+            async pull(output) {
+                try {
+                    const chunk = await read();
+                    if (chunk.done) { cleanup(); output.close(); }
+                    else output.enqueue(chunk.value);
+                } catch (error) {
+                    await stop();
+                    output.error(error instanceof ApiError ? error : failed());
+                }
+            },
+            cancel: stop
+        }, { highWaterMark: 0 });
+    } catch (error) {
+        await stop();
+        throw error instanceof ApiError ? error : failed();
+    }
 }

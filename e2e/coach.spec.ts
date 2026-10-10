@@ -37,6 +37,55 @@ async function providers(page: Page, voice = true) {
   await page.route('**/api/feedback', route => route.fulfill({ json: report }));
 }
 
+test('voice choice matches the character and the speech request', async ({ page }) => {
+  await providers(page);
+  let speech: { voiceId: string; format: string } | undefined;
+  await page.route('**/api/speak', route => {
+    speech = route.request().postDataJSON();
+    return route.fulfill({ contentType: 'audio/wav', body: shortWav() });
+  });
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'Tell me about your experience.' } }));
+  await page.goto('/');
+  await expect(page.getByLabel('Their voice')).toHaveValue('marshall');
+  await page.getByLabel('Their voice').selectOption('lainey');
+  await expect(page.getByText('Lainey · Interviewer', { exact: true })).toBeVisible();
+  await expect(page.locator('.avatar-female')).toBeVisible();
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await expect(page.getByLabel('Their voice')).toBeDisabled();
+  await page.getByLabel('Your answer').fill('I enjoy building useful tools.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+  expect(speech).toMatchObject({ voiceId: 'lainey', format: 'pcm' });
+  await expect(page.locator('.message-assistant .message-author').last()).toHaveText('Lainey');
+});
+
+test('speech starts from the first PCM chunk before the response completes', async ({ page }) => {
+  await providers(page);
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'Let us discuss your experience.' } }));
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      if (String(input) !== '/api/speak') return originalFetch(input, init);
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(19200));
+          Object.assign(window, { finishSpeechStream: () => controller.close() });
+        }
+      });
+      return new Response(stream, { headers: { 'Content-Type': 'audio/pcm', 'X-Audio-Sample-Rate': '48000' } });
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await page.getByLabel('Your answer').fill('I build applications.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByText('Let us discuss your experience.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Marshall is speaking', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Your answer')).toBeDisabled();
+  await page.evaluate(() => (window as unknown as { finishSpeechStream(): void }).finishSpeechStream());
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+});
+
 test('three turns preserve scenario/history, play voice, and produce feedback', async ({ page }) => {
   await providers(page);
   const requests: { scenarioId: string; difficulty: string; messages: { role: string; content: string }[] }[] = [];
@@ -108,6 +157,21 @@ test('failed speech preserves reply and allows a typed next turn', async ({ page
   await page.getByRole('button', { name: 'Send answer' }).click();
   await expect(page.getByText('Tell me about the result.', { exact: true })).toBeVisible();
   await expect(page.getByRole('alert').filter({ hasText: 'Speech unavailable' })).toBeVisible();
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+});
+
+test('unavailable browser audio still sends the answer and preserves text', async ({ page }) => {
+  await providers(page);
+  await page.addInitScript(() => {
+    window.AudioContext = class { constructor() { throw new Error('Audio unavailable'); } } as unknown as typeof AudioContext;
+  });
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'Your experience sounds relevant.' } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await page.getByLabel('Your answer').fill('I have built several applications.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByText('Your experience sounds relevant.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Audio could not start' })).toBeVisible();
   await expect(page.getByLabel('Your answer')).toBeEnabled();
 });
 

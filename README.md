@@ -8,7 +8,7 @@ Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b
 
 Use Node.js 22.21 or newer. Install with `npm ci`, copy `.env.example` to `.env.local`, then set `GEMINI_API_KEY` and `GRADIUM_API_KEY`. Run `npm run dev` and open http://127.0.0.1:3000.
 
-Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. `GEMINI_MODEL` defaults to `gemini-3.8-flash` for both conversation and feedback. Set it to a model available to your event account. `GRADIUM_VOICE_ID` defaults to the voice in Gradium's REST example; replace it with your Studio voice if needed. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
+Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. Conversational turns default to `gemini-3.5-flash-lite`; feedback defaults to `gemini-3.8-flash`. Set `GEMINI_CONVERSATION_MODEL` and `GEMINI_FEEDBACK_MODEL` to override them independently. A legacy `GEMINI_MODEL` setting remains the fallback for either role when its specific setting is absent. The studio offers Marshall (male, default) and Lainey (female), with matching characters. `GRADIUM_VOICE_ID` remains the fallback for API calls that omit a voice choice. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
 
 ## Gradium hackathon setup
 
@@ -19,15 +19,19 @@ The [hackathon guide](https://mesquite-pyrite-bca.notion.site/redeem-coupon) fun
 3. Set `GRADIUM_API_KEY` in the project's ignored `.env.local` file and restart `npm run dev`. Keep the coupon and key out of the repository and browser code.
 4. With the app running at `http://127.0.0.1:3000`, run `npm run check:gradium`. If Next chooses a different port, set `APP_URL`, for example `APP_URL=http://127.0.0.1:3001 npm run check:gradium`. This makes one short, credit-consuming synthesis call and transcribes that generated audio through our real app routes. It sends a fixed test sentence, not your conversations, and prints no credentials.
 
-For a distinctive counterpart, use [Voice Design](https://studio.gradium.ai/voices/design) to create and save a synthetic voice, then put its permanent `voice_id` in `GRADIUM_VOICE_ID` and restart the app. The existing catalog voice works without this step. Example description: “A calm English-speaking hiring manager, clear diction, measured pace, warm but professional.”
+For a distinctive counterpart, use [Voice Design](https://studio.gradium.ai/voices/design) to create and save a synthetic voice. Add its permanent `voice_id` to the server-approved choices in `src/lib/voices.ts` to expose it in the studio; `GRADIUM_VOICE_ID` sets the fallback for API calls without a selection. Example description: “A calm English-speaking hiring manager, clear diction, measured pace, warm but professional.”
 
 For the submission, identify the features as Gradium REST STT and TTS, include the selected voice ID, and explain the flow above. TTS currently omits `model_name`, so Gradium chooses its production default; see the [TTS guide](https://docs.gradium.ai/guides/text-to-speech-rest). Coupon redemption, available balance and actual provider access must be checked in your account. The voice check confirms the API path; also try a microphone turn to check recording and playback.
 
 ## Demo
 
-Select **Ask for a raise**, set the difficulty, and start practice. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
+Select **Ask for a raise**, set the difficulty and voice, and start practice. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
 
 The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The avatar has idle, listening, thinking and speaking states.
+
+Spoken replies stream mono 48 kHz PCM16 into Web Audio playback as chunks arrive, rather than buffering a full WAV before speaking. The transcript still appears as soon as Gemini finishes. "Preparing voice" distinguishes synthesis from Gemini thinking. This reduces the audio download wait; transcription and Gemini generation still precede synthesis.
+
+Conversational calls use minimal thinking on `gemini-3.5-flash-lite` and low thinking on `gemini-3.8-flash`. Other model overrides retain their own default thinking settings to avoid unsupported parameters. Final feedback retains the model's default reasoning. This favors quick in-character responses over deep reasoning during each turn.
 
 ## Architecture and ownership
 
@@ -48,10 +52,12 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | `GET /api/status` | None | Provider key presence booleans; never keys |
 | `POST /api/transcribe` | Raw `audio/wav` | `{ text }` |
 | `POST /api/converse` | Session and message history | `{ reply }` |
-| `POST /api/speak` | `{ text }` | `audio/wav` bytes |
+| `POST /api/speak` | `{ text, voiceId?, format? }` | WAV by default; `format: "pcm"` streams `audio/pcm` with `X-Audio-Sample-Rate: 48000` |
 | `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse }` |
 
 Session input: `scenarioId`, `difficulty`, optional `customScenario`, and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
+
+Speech voice IDs are `marshall` and `lainey`, mapped to verified public Gradium catalogue IDs on the server. Speech format accepts `wav` or `pcm`. PCM streaming failures after response headers close the stream; the client retains the transcript and shows a speech error. Reset cancels the request and queued playback.
 
 Transcripts live in browser memory only. The app does not save recordings, accounts or sessions. Feedback concerns the words spoken; it does not diagnose personality or mood. Provider retention policies still apply.
 
@@ -78,9 +84,19 @@ The plan's journeys map to WAV encoding tests, mocked provider-route tests, and 
 
 The requested upgrade replaces Gemini 2.5 Flash with `gemini-3.8-flash` for conversation and feedback while preserving `GEMINI_MODEL` overrides. The parameterized API regression first failed with `expected 'gemini-2.5-flash' to be 'gemini-3.8-flash'`, then passed after the change (`npm test -- src/lib/server/routes.test.ts`: 18 passed). `npm run test:coverage`: 24 passed, 95.16% statements and 91.12% branches in the instrumented service/audio scope. Typecheck and lint pass. A synthetic live SDK request using the local configuration returned text with finish reason `STOP`; this confirms model access, not a full voice rehearsal or live structured feedback. No checkpoint commits were created.
 
+## Voice latency verification — 10 October 2026
+
+Both public catalogue choices were verified with real Gradium requests. Through the app's PCM endpoint, the first bytes arrived in 81–226 ms, while each short test phrase finished downloading in 748–879 ms. Browser tests prove playback starts before stream EOF, the selected voice matches the name/avatar, and browser audio failure preserves the typed conversation. These are short synthetic checks, not a latency guarantee for every session.
+
+A three-scenario Gemini benchmark used the same conversation instructions and 400-token cap for each variant. Original `gemini-3.8-flash` settings took 3.96–5.48 seconds and two replies hit `MAX_TOKENS` while spending most of the budget on reasoning. Low-thinking 3.8 took 1.37–1.98 seconds; minimal-thinking `gemini-3.5-flash-lite` took 0.66–1.15 seconds. All reduced-thinking replies finished with `STOP` and stayed in character in this small sample. Longer-session quality still needs human assessment. Streaming speech does not yet overlap Gemini text generation.
+
+After enabling role-specific models in the local environment, a synthetic interview turn through `/api/converse` returned a complete reply in 1.01 seconds. Verification for the voice/model changes: 64 unit/API tests and 11 browser tests pass; lint and typecheck pass. Scope review found no blockers. Webpack production compilation is used here because Turbopack has a local worker port-binding issue; no compiler configuration was changed.
+
 ## Provider references
 
 - [Google GenAI SDK / Gemini](https://ai.google.dev/gemini-api/docs/generate-content)
+- [Gemini thinking levels](https://ai.google.dev/gemini-api/docs/thinking)
+- [Gemini 3.5 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
 - [Gradium STT REST](https://docs.gradium.ai/guides/speech-to-text-rest): raw WAV upload, NDJSON text segments
 - [Gradium TTS REST](https://docs.gradium.ai/guides/text-to-speech-rest): WAV output with `only_audio: true`
 
