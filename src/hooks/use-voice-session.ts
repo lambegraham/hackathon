@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { encodeWav, mergeAudioChunks, resampleMono } from "@/lib/audio";
+import { createManualTranscript } from "@/lib/manual-transcript";
 
 const MAX_SECONDS = 60;
 const WORKLET_SOURCE = `
@@ -59,6 +60,8 @@ function releaseCapture(capture: Capture | null) {
 export function useVoiceSession() {
   const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveTranscriptError, setLiveTranscriptError] = useState<string | null>(null);
+  const transcriptRef = useRef<ReturnType<typeof createManualTranscript> | null>(null);
   const captureRef = useRef<Capture | null>(null);
   const chunksRef = useRef<Float32Array[]>([]);
   const sampleRateRef = useRef(16000);
@@ -68,6 +71,8 @@ export function useVoiceSession() {
 
   const cancelRecording = useCallback(() => {
     generationRef.current++;
+    transcriptRef.current?.stop();
+    transcriptRef.current = null;
     releaseCapture(captureRef.current);
     captureRef.current = null;
     chunksRef.current = [];
@@ -83,9 +88,10 @@ export function useVoiceSession() {
     };
   }, [cancelRecording]);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (onTranscript?: (text: string) => void) => {
     cancelRecording();
     setError(null);
+    setLiveTranscriptError(null);
     const generation = generationRef.current;
     let pendingStream: MediaStream | null = null;
     try {
@@ -115,7 +121,9 @@ export function useVoiceSession() {
       capture.muted = context.createGain();
       capture.muted.gain.value = 0;
       capture.processor.port.onmessage = (event: MessageEvent<Float32Array>) => {
-        if (generation === generationRef.current) chunksRef.current = [...chunksRef.current, event.data];
+        if (generation !== generationRef.current) return;
+        chunksRef.current = [...chunksRef.current, event.data];
+        transcriptRef.current?.push(event.data);
       };
       capture.source.connect(capture.processor);
       capture.processor.connect(capture.muted);
@@ -124,7 +132,21 @@ export function useVoiceSession() {
       if (generation !== generationRef.current || !mountedRef.current) return;
       activeRef.current = true;
       setIsRecording(true);
+      if (onTranscript) {
+        const transcript = createManualTranscript({
+          onTranscript: (text) => {
+            if (generation === generationRef.current && mountedRef.current) onTranscript(text);
+          },
+          onError: (message) => {
+            if (generation === generationRef.current && mountedRef.current) setLiveTranscriptError(message);
+          },
+        });
+        transcriptRef.current = transcript;
+        void transcript.start(context.sampleRate);
+      }
       capture.timer = setTimeout(() => {
+        transcriptRef.current?.stop();
+        transcriptRef.current = null;
         releaseCapture(captureRef.current);
         captureRef.current = null;
         if (mountedRef.current) setError("60-second limit reached. Finish to send your answer.");
@@ -156,5 +178,5 @@ export function useVoiceSession() {
     }
   }, [cancelRecording]);
 
-  return { isRecording, error, startRecording, stopRecording, cancelRecording };
+  return { isRecording, error, liveTranscriptError, startRecording, stopRecording, cancelRecording };
 }

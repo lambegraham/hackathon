@@ -102,4 +102,21 @@ describe("streaming speech player", () => {
     expect(onStart).not.toHaveBeenCalled();
   });
 
+  it("preserves the unlocked context across a duplex interruption", async () => {
+    const player = createStreamingPlayer(); await player.prepare();
+    const stream = response(); const abort = new AbortController();
+    const result = player.play(stream.value, abort.signal, vi.fn());
+    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+    stream.controller.enqueue(new Uint8Array([0, 64])); await tick();
+    player.stop(true); abort.abort(); await rejected;
+    const context = FakeContext.instances[0];
+    expect(context.close).not.toHaveBeenCalled();
+    expect(context.sources[0].stop).toHaveBeenCalledOnce();
+    const next = response(); const replay = player.play(next.value, new AbortController().signal, vi.fn());
+    next.controller.enqueue(new Uint8Array([0, 64])); next.controller.close(); await tick();
+    context.sources[1].end(); await replay;
+    expect(FakeContext.instances).toHaveLength(1);
+    player.stop(); expect(context.close).toHaveBeenCalledOnce();
+  });
+
 });

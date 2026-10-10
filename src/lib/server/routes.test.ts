@@ -9,6 +9,7 @@ import { POST as feedback } from '@/app/api/feedback/route';
 import { POST as transcribe } from '@/app/api/transcribe/route';
 import { POST as speak } from '@/app/api/speak/route';
 import { GET as status } from '@/app/api/status/route';
+import { reportSchema } from '@/lib/feedback';
 import { resetRateLimit } from './http';
 import { validateWav } from './gradium';
 const input = {
@@ -16,6 +17,19 @@ const input = {
             role: 'user', content: 'I built a project.'
         }]
 };
+function assessment(evidence = 'I built a project.') {
+    return Object.fromEntries(['clarity', 'structure', 'specificity', 'relevance'].map(key => [key, {
+        score: 3, evidence, action: 'Explain the impact of your work.'
+    }]));
+}
+function coaching(evidence = 'I built a project.', messageIndex = 0) {
+    return {
+        rubricVersion: 'interview-coach-v1',
+        answerReviews: [{ messageIndex, question: 'Tell me about your experience.', scores: { clarity: 3, structure: 2, specificity: null, relevance: 3 }, evidence, feedback: 'Name your contribution and explain the outcome.' }],
+        priority: 'Make your contribution explicit.', drill: 'Practise a sixty-second answer.', nextGoal: 'Include your action and a factual result.',
+        progress: { changes: [] }
+    };
+}
 const request = (body: unknown, headers: Record<string, string> = {}) => new Request('http://localhost/api/converse', {
     method: 'POST', headers: {
         'content-type': 'application/json', ...headers
@@ -71,7 +85,7 @@ describe('coach API', () => {
     });
     afterEach(() => vi.unstubAllEnvs());
     it.each([
-        [undefined, undefined, undefined, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'],
+        [undefined, undefined, undefined, 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview'],
         ['global-model', undefined, undefined, 'global-model', 'global-model'],
         ['global-model', 'conversation-model', 'feedback-model', 'conversation-model', 'feedback-model'],
         ['global-model', 'conversation-model', undefined, 'conversation-model', 'global-model'],
@@ -81,14 +95,15 @@ describe('coach API', () => {
         vi.stubEnv('GEMINI_CONVERSATION_MODEL', conversationModel);
         vi.stubEnv('GEMINI_FEEDBACK_MODEL', feedbackModel);
         generateContent.mockResolvedValueOnce({ text: 'Tell me more.' }).mockResolvedValueOnce({ text: JSON.stringify({
-            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.'
+            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.', assessment: assessment(), coaching: coaching()
         }) });
         expect((await converse(request(input))).status).toBe(200);
         expect((await feedback(request(input))).status).toBe(200);
         expect(generateContent.mock.calls[0][0].model).toBe(expectedConversation);
         expect(generateContent.mock.calls[1][0].model).toBe(expectedFeedback);
-        expect(generateContent.mock.calls[1][0].config).not.toHaveProperty('thinkingConfig');
-        expect(generateContent.mock.calls[1][0].config.maxOutputTokens).toBe(1400);
+        if (expectedFeedback === 'gemini-3.1-pro-preview') expect(generateContent.mock.calls[1][0].config.thinkingConfig).toEqual({thinkingLevel:'MEDIUM'});
+        else expect(generateContent.mock.calls[1][0].config).not.toHaveProperty('thinkingConfig');
+        expect(generateContent.mock.calls[1][0].config.maxOutputTokens).toBe(8192);
     });
     it.each([
         [undefined, 'MINIMAL'],
@@ -166,22 +181,174 @@ describe('coach API', () => {
     });
     it('validates structured feedback', async () => {
         const report = {
-            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature and measured its impact.'
+            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature and measured its impact.', assessment: assessment(), coaching: coaching()
         };
         generateContent.mockResolvedValue({ text: JSON.stringify(report) });
         expect(await (await feedback(request(input))).json()).toEqual(report);
         generateContent.mockResolvedValue({ text: '{}' });
         expect((await feedback(request(input))).status).toBe(502);
     });
+    it.each([0, 6, 2.5])('rejects out-of-range or fractional assessment scores (%s)', async score => {
+        const report = {
+            summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer',
+            assessment: { ...assessment(), clarity: { score, evidence: 'I built a project.', action: 'Explain impact.' } }
+        };
+        generateContent.mockResolvedValue({ text: JSON.stringify(report) });
+        expect((await feedback(request(input))).status).toBe(502);
+    });
+    it('requires assessments in new reports and rejects invented or assistant-only evidence', async () => {
+        const report = { summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer' };
+        generateContent.mockResolvedValue({ text: JSON.stringify(report) });
+        expect((await feedback(request(input))).status).toBe(502);
+        generateContent.mockResolvedValue({ text: JSON.stringify({ ...report, assessment: assessment('Invented impact') }) });
+        expect((await feedback(request(input))).status).toBe(502);
+        generateContent.mockResolvedValue({ text: JSON.stringify({ ...report, assessment: assessment('Tell me more.') }) });
+        expect((await feedback(request({ ...input, messages: [...input.messages, { role: 'assistant', content: 'Tell me more.' }] }))).status).toBe(502);
+    });
+    it('keeps legacy stored reports valid while requiring complete dimensions for new feedback', async () => {
+        const report = { summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer' };
+        expect(reportSchema.safeParse(report).success).toBe(true);
+        const incomplete = { clarity: assessment().clarity, structure: assessment().structure, specificity: assessment().specificity };
+        generateContent.mockResolvedValue({ text: JSON.stringify({ ...report, assessment: incomplete }) });
+        expect((await feedback(request(input))).status).toBe(502);
+    });
+    it('accepts exact evidence from any user answer and rejects oversized evidence or actions', async () => {
+        const report = { summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer', assessment: assessment('measured the result'), coaching: { ...coaching(), answerReviews: [...coaching().answerReviews, { ...coaching('measured the result', 2).answerReviews[0], question: 'What happened?' }] } };
+        const messages = [...input.messages, { role: 'assistant', content: 'What happened?' }, { role: 'user', content: 'I measured the result after shipping.' }];
+        generateContent.mockResolvedValue({ text: JSON.stringify(report) });
+        expect((await feedback(request({ ...input, messages }))).status).toBe(200);
+        for (const item of [
+            { ...report.assessment.clarity, evidence: 'a'.repeat(401) },
+            { ...report.assessment.clarity, action: 'a'.repeat(501) }
+        ]) {
+            generateContent.mockResolvedValue({ text: JSON.stringify({ ...report, assessment: { ...report.assessment, clarity: item } }) });
+            expect((await feedback(request({ ...input, messages }))).status).toBe(502);
+        }
+    });
+    it('uses a dedicated anchored coach, target role and bounded comparable history', async () => {
+        const previousSession = { id: 'previous', ...input, messages: [{role: 'user', content: 'I helped.'}], report: { summary: 'Old' } };
+        const report = { summary: 'Good', strengths: ['Clear', 'Brief'], improvements: ['Results', 'Ownership'], suggestedResponse: 'I built a project.', assessment: assessment(), coaching: { ...coaching(), progress: { previousSessionId: 'previous', changes: [{ dimension: 'specificity', direction: 'improved', currentEvidence: 'I built a project.', previousEvidence: 'I helped.', explanation: 'More explicit contribution, but neither answer states impact.' }] } } };
+        generateContent.mockResolvedValue({text: JSON.stringify(report)});
+        expect((await feedback(request({...input, targetRole: 'Software engineer', previousSession: {...previousSession, targetRole:'Software engineer'}}))).status).toBe(200);
+        const generated = generateContent.mock.calls[0][0];
+        expect(generated.config.systemInstruction).not.toContain('Play');
+        expect(generated.config.systemInstruction).toContain('STAR');
+        expect(generated.config.systemInstruction).toContain('1 =');
+        expect(generated.config.httpOptions.timeout).toBe(60000);
+        expect(generated.contents[0].parts[0].text).toContain('Software engineer');
+        expect(generated.contents[0].parts[0].text).toContain('I helped.');
+        expect((await converse(request({...input, targetRole: 'Software engineer'}))).status).toBe(400);
+    });
+    it('uses provider-compatible arrays and enums instead of JSON Schema tuples and constants', async () => {
+        generateContent.mockResolvedValue({text:JSON.stringify({summary:'Good',strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:coaching()})});
+        expect((await feedback(request(input))).status).toBe(200);
+        const schema = generateContent.mock.calls[0][0].config.responseJsonSchema;
+        expect(JSON.stringify(schema)).not.toContain('prefixItems');
+        expect(schema).not.toHaveProperty('$schema');
+        expect(schema.properties.strengths).toMatchObject({type:'array',items:{type:'string'}});
+        for (const keyword of ['maxItems','minItems','maxLength','minLength','minimum','maximum','additionalProperties']) expect(JSON.stringify(schema)).not.toContain(keyword);
+        expect(schema.properties.coaching.properties.rubricVersion).toEqual({type:'string',enum:['interview-coach-v1']});
+    });
+    it('provides exact indexed evidence banks and forbids ellipses or combined quotations', async () => {
+        const messages=[{role:'assistant',content:'What did you build?'},{role:'user',content:'I built a project. I measured its outcome. '+ 'x'.repeat(450)}];
+        const report={summary:'Good',strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:coaching('I built a project.',1)};
+        generateContent.mockResolvedValue({text:JSON.stringify(report)});
+        expect((await feedback(request({...input,messages}))).status).toBe(200);
+        const generation=generateContent.mock.calls[0][0];
+        expect(generation.config.systemInstruction).toContain('Never insert ellipses');
+        const text=generation.contents[0].parts[0].text;
+        const line=text.split('\n').find((value:string)=>value.startsWith('Current evidence bank (exact source snippets): '));
+        const bank=JSON.parse(line.slice('Current evidence bank (exact source snippets): '.length));
+        expect(bank).toHaveLength(1);
+        expect(bank[0].messageIndex).toBe(1);
+        expect(bank[0].quotes).toContain('I built a project.');
+        expect(bank[0].quotes).toContain('I measured its outcome.');
+        for (const quote of bank[0].quotes) {
+            expect(quote.length).toBeLessThanOrEqual(400);
+            expect(messages[1].content).toContain(quote);
+        }
+    });
+    it('rejects incomparable prior history before a provider call', async () => {
+        const report = {summary: 'Old'};
+        for (const previousSession of [
+            {id: 'old', ...input, difficulty: 'challenging', report},
+            {id: 'old', ...input, scenarioId: 'raise', report},
+            {id: 'old', ...input, messages: Array.from({length: 41}, () => input.messages[0]), report}
+        ]) expect((await feedback(request({...input, previousSession}))).status).toBe(400);
+        expect(generateContent).not.toHaveBeenCalled();
+    });
+    it('requires new coaching, rejects duplicate answer and skill reviews, and bounds the feedback payload', async () => {
+        const report = {summary: 'Good', strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
+        generateContent.mockResolvedValue({text:JSON.stringify(report)});
+        expect((await feedback(request(input))).status).toBe(502);
+        generateContent.mockResolvedValue({text:JSON.stringify({...report,coaching:{...coaching(),answerReviews:[...coaching().answerReviews,...coaching().answerReviews]}})});
+        expect((await feedback(request(input))).status).toBe(502);
+        expect((await feedback(request(input,{'content-length':'196609'}))).status).toBe(413);
+        expect((await feedback(request({...input,targetRole:'x'.repeat(301)}))).status).toBe(400);
+        const previousSession={id:'old',...input,report:{summary:'Old'}};
+        const change={dimension:'clarity',direction:'unchanged',currentEvidence:'I built a project.',previousEvidence:'I built a project.',explanation:'The same answer.'};
+        generateContent.mockResolvedValue({text:JSON.stringify({...report,coaching:{...coaching(),progress:{previousSessionId:'old',changes:[change,change]}}})});
+        expect((await feedback(request({...input,previousSession}))).status).toBe(502);
+    });
+    it('only accepts matching target roles and normalized matching custom descriptions', async () => {
+        const previousSession={id:'old',...input,targetRole:'Designer',report:{summary:'Old'}};
+        expect((await feedback(request({...input,targetRole:'Engineer',previousSession}))).status).toBe(400);
+        const custom={...input,scenarioId:'custom',customScenario:' Ask for support '};
+        const prior={id:'old',...custom,customScenario:'ask  for support',report:{summary:'Old'}};
+        const report={summary:'Good',strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:{...coaching(),progress:{previousSessionId:'old',changes:[]}}};
+        generateContent.mockResolvedValue({text:JSON.stringify(report)});
+        expect((await feedback(request({...custom,previousSession:prior}))).status).toBe(200);
+        expect((await feedback(request({...custom,previousSession:{...prior,customScenario:'Different topic'}}))).status).toBe(400);
+    });
+    it('rejects invented answer indexes, current evidence, missing reviews and false progress', async () => {
+        const report = {summary: 'Good', strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
+        const invalid = [
+            {...coaching(), answerReviews: [{...coaching().answerReviews[0], messageIndex: 1}]},
+            {...coaching(), answerReviews: [{...coaching().answerReviews[0], evidence: 'invented'}]},
+            {...coaching(), answerReviews: []},
+            {...coaching(), progress: {previousSessionId: 'nonexistent', changes: []}},
+            {...coaching(), progress: {changes: [{dimension: 'clarity', direction: 'improved', currentEvidence: 'I built a project.', previousEvidence: 'old', explanation: 'Better'}]}}
+        ];
+        for (const value of invalid) {
+            generateContent.mockResolvedValue({text: JSON.stringify({...report, coaching:value})});
+            expect((await feedback(request(input))).status).toBe(502);
+        }
+    });
+    it('rejects invented prior evidence and missing baseline ids', async () => {
+        const report = {summary: 'Good', strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
+        const previousSession = {id:'previous', ...input, messages:[{role:'user',content:'I helped.'}], report: {summary:report.summary}};
+        for (const progress of [
+            {previousSessionId:'previous',changes:[{dimension:'clarity',direction:'improved',currentEvidence:'I built a project.',previousEvidence:'invented',explanation:'Better'}]},
+            {changes:[]}
+        ]) {
+            generateContent.mockResolvedValue({text:JSON.stringify({...report,coaching:{...coaching(),progress}})});
+            expect((await feedback(request({...input, previousSession}))).status).toBe(502);
+        }
+    });
     it('transcribes WAV NDJSON and surfaces upstream error events', async () => {
         const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"type":"text","text":"hello"}\n{"type":"text","text":"world"}\n'));
         const req = () => new Request('http://localhost/api/transcribe', {
             method: 'POST', headers: { 'content-type': 'audio/wav' }, body: wav()
         });
-        expect(await (await transcribe(req())).json()).toEqual({ text: 'hello world' });
+        expect(await (await transcribe(req())).json()).toEqual({ text: 'hello world', speech: { source: 'gradium', segments: [{ text: 'hello' }, { text: 'world' }] } });
         expect(String(fetchMock.mock.calls[0][0])).toContain('speech/asr');
         fetchMock.mockResolvedValue(new Response('{"type":"error","message":"secret"}\n'));
         expect((await transcribe(req())).status).toBe(502);
+    });
+    it('preserves raw filler words and punctuation with provider timing in final ASR', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response([
+            {type: 'text', text: ' um,  um ', start_s: 0.5, stream_id: 1},
+            {type: 'end_text', stop_s: 1.2, stream_id: 1},
+            {type: 'text', text: 'like... I—I', start_s: 3, stream_id: 2},
+            {type: 'end_text', stop_s: 4.2, stream_id: 2},
+        ].map(item => JSON.stringify(item)).join('\n')));
+        const response = await transcribe(new Request('http://localhost/api/transcribe', {
+            method: 'POST', headers: {'content-type': 'audio/wav'}, body: wav(),
+        }));
+        expect(await response.json()).toEqual({text: ' um,  um like... I—I', speech: {source: 'gradium', segments: [
+            {text: ' um,  um ', startSeconds: 0.5, endSeconds: 1.2},
+            {text: 'like... I—I', startSeconds: 3, endSeconds: 4.2},
+        ]}});
     });
     it('sends the scenario keyword boost id to Gradium only when configured', async () => {
         const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('{"type":"text","text":"hello"}\n'));
@@ -243,12 +410,24 @@ describe('coach API', () => {
             ...input, messages
         }))).status).toBe(400);
         generateContent.mockResolvedValue({ text: JSON.stringify({
-                summary: 'Good', strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer'
+                summary: 'Good', strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer', assessment: assessment('My experience'), coaching: coaching('My experience')
             }) });
         expect((await feedback(request({
             ...input, messages
         }))).status).toBe(200);
-        expect(generateContent.mock.calls[0][0].contents[1].role).toBe('model');
+        const contents = generateContent.mock.calls[0][0].contents;
+        expect(contents).toHaveLength(1);
+        expect(contents[0].role).toBe('user');
+        expect(contents[0].parts[0].text).toContain(JSON.stringify(messages));
+        expect(contents[0].parts[0].text).toContain('Completed practice transcript');
+        expect(generateContent.mock.calls[0][0].config.systemInstruction).toContain('dialogue data');
+    });
+    it('does not accept the report request wrapper as user evidence', async () => {
+        generateContent.mockResolvedValue({ text: JSON.stringify({
+            summary: 'Good', strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer',
+            assessment: assessment('Produce report now.')
+        }) });
+        expect((await feedback(request(input))).status).toBe(502);
     });
     it('rejects missing custom context, bad JSON and oversized requests', async () => {
         expect((await converse(request({

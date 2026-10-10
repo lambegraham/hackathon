@@ -14,7 +14,7 @@ export function createStreamingPlayer() {
   let context: AudioContext | null = null;
   let active: Playback | null = null;
 
-  function cancel(error: unknown = abortError()) {
+  function cancel(error: unknown = abortError(), preserveContext = false) {
     const playback = active;
     active = null;
     if (playback) {
@@ -27,9 +27,11 @@ export function createStreamingPlayer() {
       }
       playback.reject(error);
     }
-    const previous = context;
-    context = null;
-    if (previous) void previous.close().catch(() => {});
+    if (!preserveContext) {
+      const previous = context;
+      context = null;
+      if (previous) void previous.close().catch(() => {});
+    }
   }
 
   async function prepare() {
@@ -118,5 +120,5 @@ export function createStreamingPlayer() {
     });
   }
 
-  return { prepare, play, stop: () => cancel() };
+  return { prepare, play, stop: (preserveContext = false) => cancel(abortError(), preserveContext) };
 }

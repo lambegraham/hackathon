@@ -1,3 +1,4 @@
+import { createSpeechTranscript } from '../speech-transcript';
 import { ApiError, requireKey } from './http';
 import { VOICES, type VoiceId } from '../voices';
 export function validateWav(bytes: Uint8Array, maxSeconds = 60) {
@@ -94,20 +95,22 @@ export async function transcribe(bytes: Uint8Array, scenario?: string) {
         method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: bytes as BodyInit
     }, async (response) => {
         const lines = new TextDecoder().decode(await boundedResponse(response, 1048576)).split('\n').filter(line => line.trim());
-        const segments: string[] = [];
+        const transcript = createSpeechTranscript();
         for (const line of lines) {
             const item = JSON.parse(line);
             if (item.type === 'error')
                 throw new ApiError(502, 'Gradium could not transcribe the recording. Please try again.');
-            if (item.type === 'text' && typeof item.text === 'string')
-                segments.push(item.text);
+            if (item && typeof item === 'object') {
+                try { transcript.add(item); }
+                catch { throw new ApiError(422, 'The transcript is too long. Please record a shorter answer.'); }
+            }
         }
-        const text = segments.join(' ').trim();
-        if (!text)
+        const text = transcript.text();
+        if (!text.trim())
             throw new ApiError(422, 'No speech was detected. Please record again.');
         if (text.length > 4000)
             throw new ApiError(422, 'The transcript is too long. Please record a shorter answer.');
-        return { text };
+        return { text, speech: transcript.snapshot() };
     });
 }
 export async function speak(text: string, voiceId?: VoiceId) {
