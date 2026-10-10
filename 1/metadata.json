@@ -1,0 +1,132 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K5XCKVDQG4QY8TKCYHRP1B",
+  "session_id": "01a1265a-914c-78b1-9a2c-2260ef238bfc",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T15:11:51.061355Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".env.example",
+    "README.md",
+    "e2e/coach.spec.ts",
+    "public/avatars/lainey.jpg",
+    "public/avatars/marshall.png",
+    "src/app/api/speak/route.ts",
+    "src/app/globals.css",
+    "src/app/layout.tsx",
+    "src/components/aura-visualizer.tsx",
+    "src/components/avatar.tsx",
+    "src/components/coach.tsx",
+    "src/components/outfits.tsx",
+    "src/components/sunflower.tsx",
+    "src/components/wardrobe.tsx",
+    "src/lib/contracts.ts",
+    "src/lib/profile-wardrobe.test.ts",
+    "src/lib/profile.ts",
+    "src/lib/scenarios.ts",
+    "src/lib/server/gemini.ts",
+    "src/lib/server/gradium.ts",
+    "src/lib/server/routes.test.ts",
+    "src/lib/server/validation.ts",
+    "src/lib/tonality.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6-astra",
+  "turn_id": "9453ef3bab89",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 106142,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1841792,
+    "output_tokens": 3447,
+    "api_call_count": 24,
+    "subagent_tokens": {
+      "input_tokens": 98510,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 445440,
+      "output_tokens": 5192,
+      "api_call_count": 9
+    },
+    "subagent_tokens_complete": true
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T15:11:50.959657Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 101,
+    "human_removed": 23,
+    "total_committed": 1,
+    "total_lines_changed": 124,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 3021,
+      "user_lines_removed": 372,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 8,
+        "Graham-SWE-Quick-Reference.md": 26,
+        "README.md": 11,
+        "e2e/coach.spec.ts": 107,
+        "e2e/profile.spec.ts": 66,
+        "hello-entire.md": 3,
+        "src/app/api/speak/route.ts": 3,
+        "src/app/globals.css": 1321,
+        "src/app/layout.tsx": 7,
+        "src/components/aura-visualizer.tsx": 411,
+        "src/components/avatar.tsx": 89,
+        "src/components/coach.tsx": 342,
+        "src/components/outfits.tsx": 68,
+        "src/components/sunflower.tsx": 85,
+        "src/components/wardrobe.tsx": 37,
+        "src/lib/contracts.ts": 10,
+        "src/lib/profile.test.ts": 92,
+        "src/lib/scenarios.ts": 10,
+        "src/lib/server/feedback.test.ts": 72,
+        "src/lib/server/gemini.ts": 27,
+        "src/lib/server/gradium.ts": 13,
+        "src/lib/server/routes.test.ts": 70,
+        "src/lib/server/validation.ts": 7,
+        "src/lib/tonality.ts": 35
+      },
+      "user_removed_per_file": {
+        "README.md": 17,
+        "e2e/coach.spec.ts": 17,
+        "e2e/profile.spec.ts": 102,
+        "src/app/api/speak/route.ts": 3,
+        "src/app/globals.css": 8,
+        "src/app/layout.tsx": 3,
+        "src/components/avatar.tsx": 22,
+        "src/components/coach.tsx": 24,
+        "src/lib/contracts.ts": 1,
+        "src/lib/profile.test.ts": 146,
+        "src/lib/scenarios.ts": 1,
+        "src/lib/server/gemini.ts": 10,
+        "src/lib/server/gradium.ts": 6,
+        "src/lib/server/routes.test.ts": 10,
+        "src/lib/server/validation.ts": 2
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 101,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2941,
+      "agent_lines_removed": 372,
+      "user_added_per_file": {
+        ".claude/settings.json": 101
+      }
+    }
+  ]
+}
