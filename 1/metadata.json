@@ -1,0 +1,68 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4KAT8TVYECZKQ8NB0ASXB74",
+  "session_id": "f7b51e3d-6fab-46da-9d1a-a5755dd4c7f4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T16:37:28.760467Z",
+  "branch": "feat/practice-levels",
+  "checkpoints_count": 4,
+  "save_step_count": 2,
+  "files_touched": [
+    "src/components/coach.tsx",
+    "src/components/sunflower.tsx"
+  ],
+  "agent": "Cursor",
+  "model": "grok-4.7-xhigh",
+  "turn_id": "76aa0614e59b",
+  "checkpoint_transcript_start": 60,
+  "transcript_lines_at_start": 60,
+  "compact_transcript_start": 6,
+  "token_usage": {
+    "input_tokens": 15411,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1718528,
+    "output_tokens": 9034,
+    "api_call_count": 2
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T16:37:28.748942Z",
+    "agent_lines": 0,
+    "agent_removed": 13,
+    "human_added": 0,
+    "human_modified": 59,
+    "human_removed": 31,
+    "total_committed": 1,
+    "total_lines_changed": 156,
+    "agent_percentage": 8.333333333333332,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 104,
+      "user_lines_removed": 85,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40,
+        "src/components/coach.tsx": 64
+      },
+      "user_removed_per_file": {
+        "src/components/coach.tsx": 85
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 64,
+      "agent_lines_removed": 85,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40
+      }
+    }
+  ]
+}

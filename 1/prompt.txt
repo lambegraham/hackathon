@@ -1,0 +1,69 @@
+🛠️ The 9 Step-by-Step Prompts
+
+Use these individually as you work through a specific feature or task.
+
+1. The Necessity Check
+
+text
+Review my feature request: [INSERT FEATURE REQ]. Challenge this requirement. Does this code actually need to exist, or can we solve the root business problem without writing new code?
+Use code with caution.
+
+2. Native Platform Check
+
+text
+For this feature, what native browser, OS, or HTML5 capabilities already exist that handle this out-of-the-box? Give me a solution that uses zero custom JavaScript or external UI libraries.
+Use code with caution.
+
+3. Standard Library Audit
+
+text
+I need to implement this logic. Instead of writing custom helper functions, show me how to achieve this strictly using the programming language's native standard library or built-in methods.
+Use code with caution.
+
+4. Local Code Reuse
+
+text
+Scan my existing codebase. What functions, utilities, or components do we already have that can be reused, extended, or slightly modified to handle this new requirement?
+Use code with caution.
+
+5. Dependency Check
+
+text
+Review my package configuration. Are there any libraries already installed in this project that can solve this problem? Do not suggest adding any new npm/pip packages.
+Use code with caution.
+
+6. The One-Liner Challenge
+
+text
+Take the logic we just discussed and collapse it into its most concise, readable, single-line (or minimal-line) equivalent without losing readability.
+Use code with caution.
+
+7. Trust Boundary Guard
+
+text
+Look at our minimal solution. Did we cut any corners on security, input validation, error handling, or accessibility? Add only the absolute bare minimum code needed to secure these trust boundaries.
+Use code with caution.
+
+8. The Anti-Bloat Review
+
+text
+Review my current git diff or code block. Act like a ruthless senior dev and give me a "delete list." What lines, over-engineered abstractions, or premature optimizations can we safely strip out?
+Use code with caution.
+
+9. Technical Debt Ledger
+
+text
+We took some lazy shortcuts to ship this fast. Identify any hidden technical debt we just introduced, and write down a precise, tracked ledger comment (e.g., TODO or FIXME) so we don't forget to address it later.
+Use code with caution.
+
+---
+
+why are my prompts not here?
+
+---
+
+why is mine just about practice?
+
+---
+
+entire shows nothing i did
