@@ -2,8 +2,19 @@
   "cli_version": "0.11.4",
   "checkpoint_id": "01M4JZ2D1FCAG6P2FYN3D5XSN4",
   "strategy": "manual-commit",
-  "checkpoints_count": 12,
-  "files_touched": null,
+  "branch": "feat/voice-tonality",
+  "checkpoints_count": 9,
+  "files_touched": [
+    "e2e/coach.spec.ts",
+    "src/app/api/speak/route.ts",
+    "src/app/globals.css",
+    "src/components/coach.tsx",
+    "src/lib/contracts.ts",
+    "src/lib/server/gemini.ts",
+    "src/lib/server/gradium.ts",
+    "src/lib/server/routes.test.ts",
+    "src/lib/server/validation.ts"
+  ],
   "sessions": [
     {
       "metadata": "/0/metadata.json",
@@ -14,10 +25,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 224,
-    "cache_creation_tokens": 174894,
-    "cache_read_tokens": 13744382,
-    "output_tokens": 71969,
-    "api_call_count": 112
+    "input_tokens": 226,
+    "cache_creation_tokens": 175468,
+    "cache_read_tokens": 13952940,
+    "output_tokens": 72383,
+    "api_call_count": 113
   }
 }
