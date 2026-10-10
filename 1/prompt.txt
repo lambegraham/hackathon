@@ -1,5 +1,1 @@
-what are my merging and rebasing skills i have?
-
----
-
 what did my old git-workflow skill do, and why isn't it active anymore?
