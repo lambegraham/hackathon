@@ -100,6 +100,32 @@ describe('coach API', () => {
         expect((await converse(request(input, { origin: 'https://evil.test' }))).status).toBe(403);
         expect(generateContent).not.toHaveBeenCalled();
     });
+    it('accepts the browser host when Next normalizes loopback to localhost', async () => {
+        generateContent.mockResolvedValue({ text: 'Tell me more.' });
+        const r = new Request('http://localhost:3000/api/converse', {
+            method: 'POST', headers: {
+                'content-type': 'application/json', host: '127.0.0.1:3000',
+                origin: 'http://127.0.0.1:3000', 'sec-fetch-site': 'same-origin'
+            }, body: JSON.stringify(input)
+        });
+        expect((await converse(r)).status).toBe(200);
+    });
+    it.each([
+        ['http://localhost:3000', 'same-origin'],
+        ['http://127.0.0.1:3001', 'same-origin'],
+        ['https://127.0.0.1:3000', 'same-origin'],
+        ['http://127.0.0.1:3000', 'cross-site'],
+        ['null', 'same-origin']
+    ])('rejects mismatched browser origin or cross-site metadata (%s, %s)', async (origin, site) => {
+        const r = new Request('http://localhost:3000/api/converse', {
+            method: 'POST', headers: {
+                'content-type': 'application/json', host: '127.0.0.1:3000',
+                origin, 'sec-fetch-site': site, 'x-forwarded-host': 'evil.test'
+            }, body: JSON.stringify(input)
+        });
+        expect((await converse(r)).status).toBe(403);
+        expect(generateContent).not.toHaveBeenCalled();
+    });
     it('returns actionable config error without provider call', async () => {
         delete process.env.GEMINI_API_KEY;
         const r = await converse(request(input));
@@ -146,6 +172,21 @@ describe('coach API', () => {
         expect((await response.arrayBuffer()).byteLength).toBe(wav().length);
         fetchMock.mockResolvedValue(new Response('not audio'));
         expect((await speak(request({ text: 'Hello' }))).status).toBe(502);
+    });
+    it('finalizes Gradium streaming WAV lengths without accepting them as uploads', async () => {
+        const bytes = wav();
+        const view = new DataView(bytes.buffer);
+        view.setUint32(4, 0xffffffff, true);
+        view.setUint32(40, 0xffffffff, true);
+        expect(() => validateWav(bytes)).toThrow();
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(bytes));
+        const response = await speak(request({ text: 'Hello' }));
+        expect(response.status).toBe(200);
+        const output = new Uint8Array(await response.arrayBuffer());
+        expect(() => validateWav(output)).not.toThrow();
+        expect(new DataView(output.buffer).getUint32(4, true)).toBe(output.length - 8);
+        expect(new DataView(output.buffer).getUint32(40, true)).toBe(output.length - 44);
+        expect(output.subarray(44)).toEqual(bytes.subarray(44));
     });
     it('retains assistant turns and accepts finished feedback', async () => {
         const messages = [{

@@ -1,5 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test('real same-origin browser POST passes the server origin guard', async ({ page }) => {
+  await page.goto('/');
+  const response = await page.evaluate(async () => {
+    const result = await fetch('/api/converse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+    });
+    return { status: result.status, body: await result.json() };
+  });
+  expect(response.status).toBe(400);
+  expect(response.body.error).toContain('Invalid request');
+});
+
 const report = {
   summary: 'You made a clear case and responded calmly to objections.',
   strengths: ['You named a concrete achievement.', 'You made a specific request.'],
