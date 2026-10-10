@@ -129,7 +129,7 @@ export function Sunflower({ state, mood, outfit, lookAt, frame = 'full' }: { sta
     : state === 'thinking' ? { ...base, brows: BROW.quizzical, eyes: 'up', mouth: 'M190 228q8 4 18-2', sweat: false, tear: false } : base;
   const label = state === 'listening' ? 'listening' : state === 'thinking' ? 'thinking' : mood === 'happy' ? 'happy to see you' : `looking ${mood}`;
   return <div className={`flower flower-${state}`} data-mood={mood} data-outfit={outfit}>
-    <svg viewBox={frame === 'chest' ? '16 12 368 448' : '0 0 400 600'} role="img" aria-label={`Sunflower ${label}`}>
+    <svg viewBox={frame === 'chest' ? '28 0 344 458' : '0 0 400 600'} role="img" aria-label={`Sunflower ${label}`}>
       <defs>
         <radialGradient id="petal" cx="35%" cy="30%" r="80%"><stop offset="0" stopColor="#fff3a6" /><stop offset=".45" stopColor="#ffd23f" /><stop offset="1" stopColor="#f0a414" /></radialGradient>
         <radialGradient id="petal-back" cx="40%" cy="30%" r="80%"><stop offset="0" stopColor="#ffd75e" /><stop offset="1" stopColor="#e08a0b" /></radialGradient>

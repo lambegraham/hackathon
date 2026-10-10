@@ -367,7 +367,15 @@ export function Coach() {
   const statusText = liveStarting || micStarting ? 'Connecting your microphone' : preparingVoice ? 'Preparing voice' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : recorder.isRecording ? 'Listening to you' : liveActive ? 'Listening. You can interrupt anytime.' : started ? 'Your turn. Take your time.' : 'Ready when you are';
   const assistantLine = [...messages].reverse().find(message => message.role === 'assistant')?.content;
   const yourLine = [...messages].reverse().find(message => message.role === 'user')?.content;
-  const advice = report ?? savedSessions[0]?.report;
+  const advice = report;
+  const levelLine = advice?.assessment
+    ? (() => {
+        const weakest = COACHING_METRICS.reduce((best, metric) =>
+          advice.assessment![metric.key].score < advice.assessment![best.key].score ? metric : best
+        );
+        return `${weakest.label}, ${skillLevelLabel(advice.assessment![weakest.key].score)}`;
+      })()
+    : null;
   const shortName: Record<string, string> = { interview: 'Job interview', raise: 'Ask for a raise', relationship: 'Relationship', feedback: 'Feedback', flatmate: 'Flatmate', coldcall: 'Cold call', bazaar: 'Bazaar', custom: 'Your own' };
   const clock = `${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`;
   const showLive = recorder.isRecording || liveActive;
@@ -425,7 +433,7 @@ export function Coach() {
                 </select>
               </label>
             </div>
-            <button className="call-profile" onClick={openProfile} disabled={started && !report}>My profile</button>
+            <button className="call-profile" aria-label="My profile" onClick={openProfile} disabled={started && !report}>Feedback</button>
             {(setupFailed || (setup && !setup.gemini)) && (
               <p className="call-notice" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Add GEMINI_API_KEY, then restart.'}</p>
             )}
@@ -433,10 +441,7 @@ export function Coach() {
 
           <section className="call-center">
             <header className="call-top">
-              <div>
-                <h1>{scenario.title}</h1>
-                <p className="call-status" aria-live="polite">{statusText}</p>
-              </div>
+              <h1>{scenario.title}</h1>
               <div className="call-top-actions">
                 {showLive && (
                   <span className="call-rec" role="status">
@@ -444,9 +449,16 @@ export function Coach() {
                     {recorder.isRecording ? `Recording ${clock}` : 'Live'}
                   </span>
                 )}
-                {started && !report && (
-                  <button className="call-end" disabled={busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End session</button>
+                {started && (
+                  <button className={`call-live${liveActive || liveStarting ? ' call-live-on' : ''}`} aria-label={liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'} disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
+                    <AudioLines size={16} />
+                  </button>
                 )}
+                {!started ? (
+                  <button className="call-end" aria-label="Start practising" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>Start</button>
+                ) : !report ? (
+                  <button className="call-end" aria-label="End session & get feedback" disabled={busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End Session</button>
+                ) : null}
                 {started && (
                   <button className="call-over" onClick={reset} aria-label="Start over"><RotateCcw size={15} /></button>
                 )}
@@ -457,9 +469,8 @@ export function Coach() {
               <div className="call-room" aria-hidden="true">
                 <div className="call-window" />
                 <div className="call-lamp" />
-                <div className="call-desk" />
               </div>
-              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} />
+              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} frame="chest" />
               <video ref={camera.videoRef} className={`flower-self-view${camera.on ? ' on' : ''}`} playsInline muted aria-hidden={!camera.on} aria-label={camera.on ? 'Your camera. Stop camera.' : undefined} onClick={() => { if (camera.on) camera.stop(); }} />
               {assistantLine && (
                 <div className="call-bubble">
@@ -467,45 +478,34 @@ export function Coach() {
                   <p>{assistantLine}</p>
                 </div>
               )}
+              <p className="sr-only" aria-live="polite">{statusText}</p>
               {busy && state !== 'speaking' && !assistantLine && (
                 <p className="call-wait">{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</p>
               )}
               {partial && <p className="call-partial" aria-label="Live transcript">{partial}</p>}
+              {yourLine && <p className="sr-only">{yourLine}</p>}
               {camera.note ? <p className="call-note" role="status">{camera.note}</p> : null}
+              {recorder.liveTranscriptError && recorder.isRecording && <p className="call-note" role="status">{recorder.liveTranscriptError}</p>}
+              {(error || recorder.error) && <p className="call-alert" role="alert">{error || recorder.error}</p>}
+              {started && (
+                <form className="call-composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
+                  <label className="sr-only" htmlFor="answer">Your answer</label>
+                  <textarea id="answer" placeholder="Or type your answer…" value={draft} onChange={event => setDraft(event.target.value)} disabled={busy || recorder.isRecording} maxLength={4000} rows={1} />
+                  <button aria-label="Send answer" disabled={busy || recorder.isRecording || !draft.trim()}><Send size={16} /></button>
+                </form>
+              )}
               <div className="call-dock">
-                <div className="call-orb-wrap">
-                  <button className={`call-orb${recorder.isRecording ? ' call-orb-hot' : ''}`} aria-label={recorder.isRecording ? 'Finish and send' : 'Record your answer'} disabled={!started || busy || liveActive || liveStarting || !setup?.gradium} onClick={toggleRecording}>
-                    {recorder.isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={20} />}
-                  </button>
-                  <span>{recorder.isRecording ? 'Send' : 'Record'}</span>
-                </div>
-                <div className="call-orb-wrap">
-                  {!started ? (
-                    <button className="call-orb call-orb-start" aria-label="Start practising" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>Start</button>
-                  ) : (
-                    <button className={`call-orb${liveActive || liveStarting ? ' call-orb-hot' : ''}`} aria-label={liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'} disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
-                      {liveActive || liveStarting ? <Square size={18} /> : <AudioLines size={20} />}
-                    </button>
-                  )}
-                  <span>{!started ? 'Start' : liveActive || liveStarting ? 'Stop' : 'Live'}</span>
-                </div>
-                <div className="call-orb-wrap">
-                  <button className={`call-orb${camera.on ? ' call-orb-on' : ''}`} aria-pressed={camera.on} aria-label={camera.on ? 'Stop camera' : 'Use camera'} onClick={() => camera.on ? camera.stop() : void camera.start()}>
-                    <Video size={20} />
-                  </button>
-                  <span>Camera</span>
-                </div>
+                <button className={`call-orb${recorder.isRecording ? ' call-orb-hot' : ''}`} aria-label={recorder.isRecording ? 'Finish and send' : 'Record your answer'} disabled={!started || busy || liveActive || liveStarting || !setup?.gradium} onClick={toggleRecording}>
+                  {recorder.isRecording ? <Square size={16} fill="currentColor" /> : <Mic size={20} />}
+                </button>
+                <button className="call-orb call-orb-hangup" aria-label="Hang up" disabled={!started || busy || !hasUserTurn || recorder.isRecording} onClick={finish}>
+                  <Square size={16} fill="currentColor" />
+                </button>
+                <button className={`call-orb${camera.on ? ' call-orb-on' : ''}`} aria-pressed={camera.on} aria-label={camera.on ? 'Stop camera' : 'Use camera'} onClick={() => camera.on ? camera.stop() : void camera.start()}>
+                  <Video size={20} />
+                </button>
               </div>
             </div>
-
-            {yourLine && <p className="call-said">{yourLine}</p>}
-            {recorder.liveTranscriptError && recorder.isRecording && <p className="call-notice" role="status">{recorder.liveTranscriptError}</p>}
-            {(error || recorder.error) && <p className="call-alert" role="alert">{error || recorder.error}</p>}
-            <form className="call-composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
-              <label className="sr-only" htmlFor="answer">Your answer</label>
-              <textarea id="answer" placeholder={started ? 'Or type your answer…' : 'Start a session to join'} value={draft} onChange={event => setDraft(event.target.value)} disabled={!started || busy || recorder.isRecording} maxLength={4000} rows={1} />
-              <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}><Send size={16} /></button>
-            </form>
             <div className="sr-only" aria-live="polite">
               {messages.map((message, index) => <p key={index}>{message.role === 'user' ? 'You' : counterpart.split(' · ')[0]}: {message.content}</p>)}
               <div ref={transcriptEnd} />
@@ -513,16 +513,14 @@ export function Coach() {
           </section>
 
           <aside className="call-advice">
-            <h2>Advice</h2>
-            {advice?.assessment ? (
-              <ul className="call-levels">
-                {COACHING_METRICS.map(({ key, label }) => (
-                  <li key={key}><span>{label}</span><span>{skillLevelLabel(advice.assessment![key].score)}</span></li>
-                ))}
-              </ul>
-            ) : null}
+            <h2>Live</h2>
             {advice ? (
-              <ul>{advice.improvements.map((item, index) => <li key={index}>{item}</li>)}</ul>
+              <>
+                {levelLine && <p className="call-level">{levelLine}</p>}
+                <ul>
+                  {advice.improvements.map((item, index) => <li key={index}>{item}</li>)}
+                </ul>
+              </>
             ) : (
               <p>Advice shows after this practice.</p>
             )}
