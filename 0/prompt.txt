@@ -19,3 +19,7 @@ No more UI merges, just merge the features
 ---
 
 Okay, what's left to merge? What have you merged in already? What is still missing? And what happened to the full duplex conversation that we had implemented?
+
+---
+
+okay so we are done then just make sure main is updated
