@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4K67TQPDNA4ZR7WY5PCEKG2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "e2e/duplex.spec.ts"
   ],
@@ -14,14 +14,21 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 430381,
+    "input_tokens": 509671,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 12384512,
-    "output_tokens": 26777,
-    "api_call_count": 101,
+    "cache_read_tokens": 13397120,
+    "output_tokens": 31161,
+    "api_call_count": 121,
     "subagent_tokens_complete": false
   }
 }
