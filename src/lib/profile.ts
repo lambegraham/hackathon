@@ -108,6 +108,11 @@ export function clearProfile(storage?: ProfileStorage): LocalProfile {
 }
 
 const normalizeScenario = (value?: string) => value?.trim().toLocaleLowerCase('en').replace(/\s+/g, ' ') ?? '';
+/** 1-based place in the same scenario, difficulty, role, and custom text. A first practice is Session 1. */
+export function sessionNumber(current: SavedSession, sessions: SavedSession[]): number {
+    return getComparableSessions(current, sessions).length + 1;
+}
+
 export function getComparableSessions(current: SavedSession, sessions: SavedSession[]): SavedSession[] {
     return sessions.filter(session => session.id !== current.id
         && Date.parse(session.completedAt) <= Date.parse(current.completedAt)
