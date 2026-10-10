@@ -7,3 +7,11 @@ node_modules/
 __pycache__/
 dist/
 build/
+.next/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env*
+!.env.example
