@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K70BPEX6VJJW3T2HH390VG",
+  "strategy": "manual-commit",
+  "branch": "feat/practice-levels",
+  "checkpoints_count": 8,
+  "files_touched": [
+    ".env.example",
+    ".gitignore",
+    "next.config.ts",
+    "package-lock.json",
+    "package.json",
+    "public/avatars/ember.vrm",
+    "public/avatars/kai.vrm",
+    "public/avatars/nova.vrm",
+    "public/avatars/sky.vrm",
+    "src/app/api/transcripts/route.ts",
+    "src/app/api/wispr/token/route.ts",
+    "src/components/profile-dashboard.tsx",
+    "src/components/profile.css",
+    "src/components/report-charts.tsx",
+    "src/components/session-report.tsx",
+    "src/lib/profile.test.ts",
+    "src/lib/profile.ts",
+    "src/lib/server/transcript-store.ts",
+    "src/lib/server/wispr.test.ts",
+    "src/lib/server/wispr.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 91765,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 6105984,
+    "output_tokens": 34821,
+    "api_call_count": 3
+  }
+}

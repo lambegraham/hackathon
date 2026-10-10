@@ -1,0 +1,794 @@
+analyze this project
+
+---
+
+# AnyResets — Interactive 3D Avatar
+## Product Requirements Document v1.0
+
+**Project:** AnyResets  
+**Feature:** Real-time 3D conversational avatar  
+**Repository:** https://github.com/lambegraham/hackathon  
+**Delivery:** Independent feature branch and pull request  
+**Implementation priority:** Functional character → speech synchronization → polish  
+**Reference:** The previously generated AnyResets 3D interview interface
+
+---
+
+## 1. Product Goal
+
+Create a real-time 3D AI character who acts as the user's conversational counterpart in AnyResets.
+
+The character must respond visually to the existing voice-conversation lifecycle.
+
+It should look attentive while listening, move naturally while speaking, react subtly while thinking, and return to a neutral posture between turns.
+
+Unlike the existing 2D SVG, the new character must be a real skeletal 3D model rendered using WebGL.
+
+The result should feel like a live video conversation with an animated person.
+
+### Non-negotiable principle
+
+**The avatar is not a prerecorded video, AI-generated still image, 2D sprite, or looping animation pretending to be 3D.**
+
+Users must see an actual 3D character with an articulated head, expressions, and mouth movement synchronized to real speech playback.
+
+---
+
+## 2. Existing Architecture — Preserve It
+
+The team already has:
+
+- Next.js and React application
+- Gemini conversation generation
+- Gradium speech-to-text
+- Gradium text-to-speech
+- Streaming PCM audio playback
+- Male and female voice selection
+- SVG avatar with lifecycle states
+- Interview, salary negotiation and other scenarios
+- End-of-session feedback
+- Automated tests
+
+### Existing relevant files
+
+`src/components/avatar.tsx`  
+Current 2D character to replace or retain as fallback.
+
+`src/components/coach.tsx`  
+Main simulation interface and voice orchestration.
+
+`src/lib/streaming-audio.ts`  
+Streams Gradium audio into Web Audio playback.
+
+`src/lib/voices.ts`  
+Voice identifiers and character metadata.
+
+`src/app/globals.css`  
+Visual styling and existing avatar animation.
+
+### Compatibility
+
+Do not rewrite Gradium, Gemini, microphone recording, the conversation flow, or feedback APIs.
+
+Keep the existing `AvatarState` interface:
+
+```ts
+type AvatarState =
+  | "idle"
+  | "listening"
+  | "thinking"
+  | "speaking";
+```
+
+The new 3D component must support these same states.
+
+Do not merge another teammate's unmerged UI changes into this feature branch.
+
+---
+
+## 3. Visual Design
+
+### Primary visual reference
+
+Use the generated AnyResets mockup as the art-direction reference.
+
+Target characteristics:
+
+- Attractive, polished stylized 3D appearance
+- Professional adult interviewer
+- Dark blazer over a neutral shirt
+- Natural facial proportions
+- Detailed eyes and hair
+- Warm, approachable resting expression
+- Soft cinematic lighting
+- Subtle office environment
+- Waist-up or chest-up camera framing
+- Natural, non-exaggerated movement
+
+Aim for polished game-character quality rather than a generic emoji avatar.
+
+### MVP character
+
+Default to one female interviewer character, matching the reference concept.
+
+Support a male option only if a second compatible model is already available.
+
+The character must not impersonate a specific real person.
+
+### Model requirement
+
+Use a licensed `.vrm` model with:
+
+- Humanoid skeleton
+- Head and neck bones
+- Eye blink support
+- Mouth expression or blendshape support
+- Facial expression presets where available
+- Commercial/demo usage rights that allow this hackathon use
+
+A VRM model is preferred because its humanoid and expression conventions simplify integration.
+
+If the selected model lacks optional expressions, gracefully fall back to the available controls.
+
+Do not assume a downloaded character model is freely redistributable. Preserve attribution and comply with its license.
+
+### Important realism constraint
+
+A fully photorealistic character matching the generated image exactly is not required for the MVP. A high-quality stylized 3D character with convincing movement is preferable to a static photorealistic render.
+
+---
+
+## 4. Technology Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| App | Next.js + React | Existing UI |
+| Renderer | Three.js | Real 3D rendering |
+| React integration | React Three Fiber | React-based scene |
+| Utilities | @react-three/drei | Lighting, loading helpers |
+| Avatar support | @pixiv/three-vrm | VRM model, expressions, skeleton |
+| Audio | Existing Web Audio pipeline | Playback and amplitude analysis |
+| Voice | Existing Gradium integration | Speech synthesis |
+| AI | Existing Gemini integration | Dialogue |
+
+### Dependencies
+
+Install compatible versions of:
+
+```bash
+npm install three @react-three/fiber @react-three/drei @pixiv/three-vrm
+npm install -D @types/three
+```
+
+Check compatibility with the existing React and Next.js versions.
+
+The 3D scene must run on the client. Do not initialize WebGL during server rendering.
+
+Use a client component and dynamic loading where necessary.
+
+---
+
+## 5. Core Functional Requirements
+
+### FR-01 — Load and Render a 3D Character
+
+Create a new `Avatar3D` component.
+
+It must:
+
+- Render a real VRM model.
+- Load from a local licensed asset.
+- Display a loading state.
+- Show the character correctly framed.
+- Maintain stable scale and orientation.
+- Recover gracefully from load failures.
+- Avoid blocking the rest of the conversation application.
+
+The model should appear centered within the existing avatar area.
+
+**Acceptance:** The user can visibly distinguish the character's front and side views through actual camera or model rotation.
+
+### FR-02 — Idle Animation
+
+When nothing is happening, the character should:
+
+- Breathe subtly.
+- Blink at natural, mildly varied intervals.
+- Make tiny head movements.
+- Maintain a relaxed posture.
+- Occasionally make small eye movements.
+
+Avoid continuous, repetitive head shaking.
+
+**Acceptance:** The character appears alive even before the user starts speaking.
+
+### FR-03 — Listening Animation
+
+When the user records speech:
+
+- The character adopts an attentive posture.
+- It subtly orients its head toward the user.
+- Small acknowledgment movements may occur.
+- The mouth remains closed.
+- Expressions remain subtle and appropriate.
+
+Do not continuously nod during every second of speech.
+
+**Acceptance:** The character clearly transitions into listening mode.
+
+### FR-04 — Thinking Animation
+
+While Gemini is producing a response:
+
+- The character may briefly look aside.
+- Head movement slows.
+- Facial expression becomes contemplative.
+- Mouth animation stops.
+- The interface clearly distinguishes thinking from speaking.
+
+Do not use exaggerated cartoon thinking gestures.
+
+**Acceptance:** Users can recognize that the counterpart is processing a response.
+
+### FR-05 — Speaking Animation
+
+When Gradium audio playback begins:
+
+- The character opens and closes its mouth according to actual audio activity.
+- Head movement becomes subtly more expressive.
+- Facial expression remains consistent with the scenario.
+- Mouth animation stops when the speech stops.
+- Interruptions and cancellations immediately stop speech-related motion.
+
+**MVP lip-sync:** Real-time amplitude-based mouth motion.
+
+**Stretch lip-sync:** Phoneme or viseme-driven mouth shapes.
+
+Do not claim phoneme-accurate synchronization if the implementation only uses loudness.
+
+### FR-06 — Facial Expressions
+
+Support at least:
+
+- Neutral
+- Listening / attentive
+- Speaking
+- Thinking
+- Positive / mild smile
+
+Optional:
+
+- Surprised
+- Concerned
+- Skeptical
+
+Use the model's expression manager or blendshapes.
+
+Expressions must transition smoothly instead of snapping.
+
+Do not infer the real user's emotional state from voice tone or camera imagery simply to trigger character expressions.
+
+### FR-07 — Head Tracking and Gesture System
+
+Implement subtle procedural character movement.
+
+The head and neck should be articulated independently of the torso.
+
+Use combinations of:
+
+- Head rotation
+- Head tilt
+- Eye gaze
+- Gentle torso motion
+- Optional hand gestures if the model supports them
+
+Gestures must be event-driven or varied, not a single repeated animation.
+
+Keep movement within physically plausible bounds.
+
+### FR-08 — Camera Views
+
+Support:
+
+**Default:** Front-facing, chest-up interviewer.
+
+**Optional:** Three-quarter angle.
+
+**Developer preview:** Side view for checking that the model is genuinely 3D.
+
+The camera must be adjustable during development without altering the dialogue system.
+
+Do not expose distracting free-camera controls during the normal interview experience.
+
+### FR-09 — Voice and Character Mapping
+
+Use the existing voice selection.
+
+When a female voice is selected, display the compatible female character.
+
+When a male voice is selected, display the male character if available, or retain the original male SVG fallback until an appropriate model is integrated.
+
+Do not silently display a mismatched voice/character selection.
+
+---
+
+## 6. Real-Time Speech Synchronization
+
+### Required architecture
+
+The app already streams Gradium PCM audio through `createStreamingPlayer()`.
+
+Extend this audio utility to expose audio-level observations during playback.
+
+**Do not create a second audio playback system.**
+
+Preferred architecture:
+
+```text
+Gradium TTS
+    |
+    v
+Existing PCM streaming player
+    |
+    v
+AudioBufferSourceNode
+    |
+    v
+AnalyserNode
+    |               |
+    v               v
+Audio output     Audio amplitude
+                    |
+                    v
+               Mouth controller
+                    |
+                    v
+             VRM mouth blendshape
+```
+
+The audio must still play exactly once.
+
+### Implementation approach
+
+Insert a Web Audio `AnalyserNode` in the existing playback path.
+
+Compute a smoothed RMS amplitude from time-domain samples.
+
+Map the amplitude to the model's available mouth-open expression.
+
+For VRM 1.0, attempt to use the `aa` preset when available.
+
+Normalize the range, apply a noise threshold, and smooth the signal to avoid jitter.
+
+### Animation characteristics
+
+- Fast mouth opening when speech starts.
+- Smooth closing during pauses.
+- Reduced movement for quiet speech.
+- No mouth movement during silence.
+- Immediate cancellation when playback stops.
+
+Use frame callbacks for visual updates without triggering a React state render on every animation frame.
+
+### Audio lifecycle
+
+Handle these events correctly:
+
+- Playback begins
+- PCM chunks arrive
+- Playback pauses or ends
+- Session resets
+- Request aborts
+- Speech request fails
+- New dialogue begins
+
+The active speech animation must never survive a reset or cancelled generation.
+
+### Future improvement
+
+If timing-aligned phonemes or visemes become available, introduce a separate interface for them.
+
+Do not block the first version on phoneme extraction.
+
+---
+
+## 7. 3D Scene Setup
+
+### Character camera
+
+Perspective camera, modest field of view.
+
+Initial framing should show the head and upper torso clearly.
+
+Use a fixed camera position and look-at target adjusted for the model's actual height.
+
+### Lighting
+
+- Soft key light from upper left.
+- Gentle fill light.
+- Subtle rim/backlight.
+- Low-intensity ambient illumination.
+
+Avoid harsh shadows and blown-out skin materials.
+
+### Environment
+
+Use a lightweight office-like background.
+
+Prefer a CSS background or a simple textured backdrop for MVP.
+
+Do not build a complete explorable office environment.
+
+### Rendering performance
+
+Use reasonable model polygon counts, compressed textures where practical, and device-appropriate pixel ratios.
+
+Pause nonessential animation when the tab is hidden.
+
+Do not render a continuously active hidden 3D scene behind the final feedback report.
+
+---
+
+## 8. Integration With the Existing Application
+
+### New files
+
+```text
+src/
+  components/
+    avatar-3d/
+      avatar-3d.tsx
+      avatar-scene.tsx
+      vrm-character.tsx
+      avatar-controller.ts
+      avatar-loading.tsx
+      avatar-error-boundary.tsx
+
+  lib/
+    avatar/
+      animation-state.ts
+      mouth-controller.ts
+      character-config.ts
+
+  hooks/
+    use-avatar-audio.ts
+
+public/
+  avatars/
+    interviewer-female.vrm
+    LICENSE.txt
+```
+
+File names may be adapted to the team's conventions.
+
+### Existing files requiring small edits
+
+**`src/components/coach.tsx`**
+
+Swap the avatar display with a dynamically loaded `Avatar3D` component.
+
+Pass the existing avatar state and selected character configuration.
+
+Preserve the surrounding scenario picker, transcript, microphone, and feedback layout.
+
+**`src/lib/streaming-audio.ts`**
+
+Expose audio amplitude or an analyser handle through a backward-compatible optional callback.
+
+Existing audio tests must remain valid.
+
+**`src/components/avatar.tsx`**
+
+Retain as the fallback if WebGL is unavailable or the model fails to load.
+
+### Suggested component interface
+
+```ts
+type Avatar3DProps = {
+  state: "idle" | "listening" | "thinking" | "speaking";
+  characterId: string;
+  speechLevel?: number;
+  expression?: string;
+  reducedMotion?: boolean;
+  onReady?: () => void;
+  onError?: (error: Error) => void;
+};
+```
+
+If rendering audio level updates frequently, use a mutable controller or subscription rather than prop-driven React rerenders.
+
+### Integration constraint
+
+The avatar must be a presentation component.
+
+It must not make independent Gemini or Gradium requests.
+
+It must not control when the conversation starts, stops, or sends messages.
+
+---
+
+## 9. Performance Requirements
+
+Targets for a reasonably modern laptop:
+
+| Metric | Target |
+|---|---|
+| 3D scene after asset load | Approximately 50–60 FPS |
+| Mobile rendering | Graceful degradation |
+| Mouth response to playback | Under 100 ms |
+| Rendering during audio | No audible glitches |
+| Loading | Visible progress or loading indicator |
+| WebGL failure | Automatic 2D fallback |
+| Model failure | No conversation interruption |
+
+Measure actual behavior on the team's demo device.
+
+Avoid treating these targets as guaranteed results.
+
+The live audio experience has higher priority than graphics quality.
+
+---
+
+## 10. Test Plan
+
+### Test A — Real 3D Asset
+
+Verify that a VRM file is loaded through the 3D renderer.
+
+Rotate the model in developer mode to demonstrate depth.
+
+A CSS-transformed SVG does not satisfy this test.
+
+### Test B — Animation States
+
+Trigger idle, listening, thinking, and speaking states independently.
+
+Confirm the correct visual changes occur.
+
+### Test C — Audio Synchronization
+
+Play real synthesized Gradium speech.
+
+Confirm that mouth movement corresponds to observed audio amplitude.
+
+Pause the audio and verify the mouth closes.
+
+### Test D — Interruption
+
+Begin a response, then reset.
+
+Confirm:
+- Audio stops.
+- Mouth movement stops.
+- No stale state events restart the animation.
+
+### Test E — Missing Model
+
+Simulate a failed model load.
+
+Verify that the original SVG character appears and the conversation continues.
+
+### Test F — Device Compatibility
+
+Test:
+- Desktop Chromium
+- Safari where available
+- Narrow/mobile viewport
+- Reduced-motion preference
+
+### Test G — Integration Regression
+
+Run the existing project checks:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+```
+
+Add focused tests for animation state transitions, audio-level normalization, cancellation, and fallback logic.
+
+Mocked browser tests do not prove genuine rendering quality. Include one manual live WebGL and audio test.
+
+---
+
+## 11. MVP Scope
+
+### P0 — Ship These
+
+- Licensed 3D VRM character renders successfully.
+- Character appears in the existing simulation interface.
+- Idle breathing and blinking.
+- Listening and thinking states.
+- Gradium audio-responsive mouth animation.
+- Proper speech cancellation.
+- Stable camera and lighting.
+- Original SVG fallback.
+- No regression in conversation functionality.
+
+### P1 — Improve If Time Permits
+
+- Better facial expressions.
+- Additional head gestures.
+- Male and female 3D characters.
+- Scenario-specific outfits.
+- Three-quarter camera view.
+- Enhanced hair movement.
+- Higher-quality materials and lighting.
+
+### P2 — Not Required for This PR
+
+- Photorealistic digital humans.
+- Full-body motion capture.
+- AI-generated custom avatars from photos.
+- Facial animation derived from live webcam video.
+- Real-time facial cloning.
+- Multiplayer.
+- Full 3D office environments.
+- Complex wardrobe editors.
+- Dedicated rendering infrastructure.
+
+---
+
+## 12. Relationship to the Visual Mockup
+
+The concept image contains additional interface elements.
+
+These must be treated as separate product features rather than silently included in the 3D implementation.
+
+| Mockup element | Requirement |
+|---|---|
+| Main 3D interviewer | P0 |
+| Idle/listening/speaking states | P0 |
+| Natural expressions | P0/P1 |
+| Side camera view | P1 |
+| Male/female customization | P1 |
+| Live performance bar | Separate scoring feature |
+| Coaching suggestions | Existing feedback feature / future enhancement |
+| User webcam preview | Separate optional multimodal feature |
+
+Do not display fabricated performance metrics such as "72% confidence" simply to make the interface match the mockup.
+
+---
+
+## 13. Hackathon Demonstration
+
+### Demo sequence
+
+**0:00 — Start**
+
+Open the existing AnyResets simulation.
+
+The 3D interviewer appears, facing the user and subtly blinking.
+
+**0:15 — Listen**
+
+The user starts recording an answer.
+
+The character enters listening mode.
+
+**0:30 — Think**
+
+The user finishes speaking.
+
+The character briefly looks contemplative while Gemini generates a response.
+
+**0:35 — Speak**
+
+Gradium begins returning audio.
+
+The character starts speaking with visibly audio-responsive mouth movement.
+
+**0:50 — Rotate**
+
+In developer preview mode, rotate the character slightly to establish that it is a true 3D asset.
+
+**1:00 — Continue**
+
+Proceed through another conversation turn without a page reload.
+
+**1:15 — Show technical architecture**
+
+Explain how the avatar receives state from the existing conversation controller and amplitude from the existing Web Audio stream.
+
+This proves the avatar is integrated into a working product rather than merely embedded as a decorative animation.
+
+---
+
+## 14. Implementation Instructions for Autonomous Coding Agents
+
+You are contributing to an active team repository.
+
+Your mission is to build and integrate the AnyResets 3D avatar without disrupting other features.
+
+### Execution requirements
+
+1. Inspect the latest `main` branch and relevant team branches before editing.
+2. Follow the repository's `AGENTS.md` and Entire development instructions.
+3. Create an isolated feature branch named `feat/interactive-3d-avatar`.
+4. Verify available VRM assets and licensing.
+5. Install only required rendering dependencies.
+6. Build the 3D renderer as an independent client-side component.
+7. Implement idle, listening, thinking, and speaking states.
+8. Integrate with the existing audio stream through a backward-compatible interface.
+9. Retain the existing SVG fallback.
+10. Connect the component to the existing simulation screen with minimal changes.
+11. Add tests and verify actual browser rendering.
+12. Run all existing tests and build checks.
+13. Open a pull request for team review. Do not merge directly into `main`.
+
+### Quality rules
+
+- No static image pretending to be a model.
+- No empty placeholder avatar.
+- No fake lip-sync disconnected from audio.
+- No hardcoded dialogue responses.
+- No unnecessary backend changes.
+- No mandatory login.
+- No unauthorized avatar assets.
+- No breakage of the existing Gradium streaming implementation.
+- No fabricated performance scores.
+- No unrelated UI redesign.
+- No destructive refactoring.
+
+If an optional visual detail cannot be implemented, retain a functioning core instead of compromising the primary voice interaction.
+
+### Definition of Done
+
+A user can open the existing AnyResets application and interact with a real 3D interviewer.
+
+The interviewer must visibly listen, think, and speak, with its mouth responding to Gradium's actual playback.
+
+The character must load reliably, function alongside the existing conversation system, and degrade gracefully if WebGL is unavailable.
+
+**The feature is complete only when it works in a running browser, not merely when the code builds.**
+
+---
+
+## 15. Final Product Principle
+
+**The avatar should make the conversation feel more human without making the technology less reliable.**
+
+Realistic interaction is more important than visual complexity.
+
+A smoothly animated, audio-responsive 3D character is a better hackathon deliverable than a photorealistic character that cannot participate reliably in the conversation.
+
+it's better right?
+
+---
+
+So tell me how to implement it, and I'm gonna implement it next. Because the issue is over in the hackathon. As you can see, there's a bunch of people doing merge request. It has been planned merge, but it has not been. I don't know what to do next. Please break fast.
+
+---
+
+You would essentially be connected.Actually the prototype, we only need the the the bar on the left, the face that looks like it's on zoom, and then on top of that we need that 3D avatar that you're gonna somehow get from somewhere, I don't know. And on top of that, we need to have very realistic looking one that looks at us while we have our camera open. And on top of that, on the right, we have like live analytics. But also advice on what to do, not just like what we're doing well. So for instance, it has like two different options. Oh, you can do this. Like, why someone asked for this. It already has the context of the person, and it's telling you, oh, you should actually answer in this way or in that way. So it gives you like hints. But this is not just for that. It's also for relationship. So you can train. The purpose is to train and and prepare.
+
+---
+
+Let me show you like what AI also suggested, and then you can evaluate which one is the best solution.If you look at the current version, they have like a sunflower as an avatar, which is pretty cool. I think like I don't know, maybe like just briefly host something so that I can see, load as fast as possible so that I see like which 3D version it needs to be able to react to the person, and also in top of that it needs to be able to react immediately like move and everything, like everything should be low latency. I think I gave you the models. I want you to use them all.API keys and etc. doesn't matter. You can take them off.
+
+---
+
+Let me show you like what AI also suggested, and then you can evaluate which one is the best solution.If you look at the current version, they have like a sunflower as an avatar, which is pretty cool. I think like I don't know, maybe like just briefly host something so that I can see, load as fast as possible so that I see like which 3D version it needs to be able to react to the person, and also in top of that it needs to be able to react immediately like move and everything, like everything should be low latency. I think I gave you the models. I want you to use them all.API keys and etc. doesn't matter. You can take them.
+
+---
+
+is it gamified? 
+please make sure
+
+can we create a branch and push it to gihtub if we're fast enough?
+
+can you test?
+
+---
+
+# Match your account's available models. This default follows the Notion MVP plan.
+GEMINI_MODEL=gemini-3.8-flash
+# Default voice from Gradium's REST guide; replace with your Studio voice if needed.
+REDACTED
+GEMINI_CONVERSATION_MODEL=gemini-3.5-flash-lite
+GEMINI_FEEDBACK_MODEL=gemini-3.1-pro-preview
+
+put it to env, not in the code
