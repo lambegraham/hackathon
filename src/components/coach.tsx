@@ -5,7 +5,9 @@ import {
   ArrowRight,
   Bot,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Maximize2,
   MessageCircle,
   Mic,
@@ -53,6 +55,7 @@ export function Coach() {
   const [busy, setBusy] = useState(false);
   const [micStarting, setMicStarting] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [settingsCollapsed, setSettingsCollapsed] = useState(false);
   const [stageMaximized, setStageMaximized] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<FeedbackReport | null>(null);
@@ -284,9 +287,9 @@ export function Coach() {
     <main className="app-shell">
       {/* TOPBAR */}
       <header className="topbar">
-        <a href="/" className="brand" aria-label="Rehearsal home">
+        <a href="/" className="brand" aria-label="Any Resets home">
           <span className="brand-mark"><MessageCircle size={18} /></span>
-          rehearsal<span className="brand-dot">.</span>
+          Any Resets?
         </a>
 
         {/* TOP-RIGHT HORIZONTAL CAPSULE FOR SCENARIO SWITCHING */}
@@ -490,44 +493,78 @@ export function Coach() {
 
           {/* RIGHT: TRANSCRIPT PANEL */}
           <section className="transcript-panel">
-            {/* Top Compact Settings Strip (Model, Voice, Approach) */}
-            <div className="persona-settings-strip">
-              <div className="setting-chip" title="Voice">
-                <Mic size={13} className="chip-icon" />
-                <label htmlFor="voice" className="chip-label">Their voice</label>
-                <select
-                  id="voice"
-                  value={voiceId}
-                  disabled={started}
-                  onChange={event => setVoiceId(event.target.value as VoiceId)}
-                  className="chip-select"
+            {/* Top Collapsible Settings Capsule (Model, Voice, Approach) */}
+            <div className={`settings-capsule-container ${settingsCollapsed ? 'is-collapsed' : 'is-expanded'}`}>
+              {settingsCollapsed ? (
+                <button
+                  type="button"
+                  className="settings-capsule-collapsed"
+                  onClick={() => setSettingsCollapsed(false)}
+                  title="Expand options"
+                  aria-label="Expand voice, approach and model options"
                 >
-                  {VOICES.map(item => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
+                  <span className="capsule-icon-wrap">
+                    <SlidersHorizontal size={13} />
+                  </span>
+                  <span className="capsule-collapsed-summary">
+                    {VOICES.find(v => v.id === voiceId)?.label || 'Voice'} · <span className="capitalize">{difficulty}</span> · Gemini 2.5
+                  </span>
+                  <span className="capsule-arrow-btn">
+                    <ChevronDown size={13} />
+                  </span>
+                </button>
+              ) : (
+                <div className="settings-capsule-expanded">
+                  <div className="capsule-controls-row">
+                    <div className="setting-chip" title="Voice">
+                      <Mic size={13} className="chip-icon" />
+                      <label htmlFor="voice" className="chip-label">Their voice</label>
+                      <select
+                        id="voice"
+                        value={voiceId}
+                        disabled={started}
+                        onChange={event => setVoiceId(event.target.value as VoiceId)}
+                        className="chip-select"
+                      >
+                        {VOICES.map(item => (
+                          <option key={item.id} value={item.id}>{item.label}</option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div className="setting-chip" title="Approach">
-                <SlidersHorizontal size={13} className="chip-icon" />
-                <label htmlFor="difficulty" className="chip-label">Their approach</label>
-                <select
-                  id="difficulty"
-                  value={difficulty}
-                  disabled={started}
-                  onChange={event => setDifficulty(event.target.value as Difficulty)}
-                  className="chip-select"
-                >
-                  <option value="friendly">Friendly</option>
-                  <option value="neutral">Neutral</option>
-                  <option value="challenging">Challenging</option>
-                </select>
-              </div>
+                    <div className="setting-chip" title="Approach">
+                      <SlidersHorizontal size={13} className="chip-icon" />
+                      <label htmlFor="difficulty" className="chip-label">Their approach</label>
+                      <select
+                        id="difficulty"
+                        value={difficulty}
+                        disabled={started}
+                        onChange={event => setDifficulty(event.target.value as Difficulty)}
+                        className="chip-select"
+                      >
+                        <option value="friendly">Friendly</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="challenging">Challenging</option>
+                      </select>
+                    </div>
 
-              <div className="setting-chip model-chip" title="Active Model">
-                <Bot size={13} className="chip-icon" />
-                <span className="chip-text">Gemini 2.5</span>
-              </div>
+                    <div className="setting-chip model-chip" title="Active Model">
+                      <Bot size={13} className="chip-icon" />
+                      <span className="chip-text">Gemini 2.5</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="capsule-collapse-action"
+                    onClick={() => setSettingsCollapsed(true)}
+                    title="Collapse options"
+                    aria-label="Collapse options"
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="panel-heading">

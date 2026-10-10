@@ -304,22 +304,105 @@ h1 {
   max-height: 760px;
 }
 
-/* PERSONA & MODEL SETTINGS STRIP (RIGHT PANEL) */
-.persona-settings-strip {
+/* COLLAPSIBLE SETTINGS CAPSULE (RIGHT PANEL) */
+.settings-capsule-container {
+  margin-bottom: 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 展开形态：整条一体化胶囊 */
+.settings-capsule-expanded {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.03);
+  padding: 4px 6px 4px 5px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-hairline);
   gap: 8px;
-  margin-bottom: 16px;
+}
+
+.capsule-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
+}
+
+.capsule-collapse-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.capsule-collapse-action:hover {
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* 折叠形态：精炼紧凑小胶囊 */
+.settings-capsule-collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-hairline);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--ink);
+}
+
+.settings-capsule-collapsed:hover {
+  background: rgba(15, 23, 42, 0.02);
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.capsule-icon-wrap {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.capsule-collapsed-summary {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink);
+  letter-spacing: -0.1px;
+}
+
+.capsule-arrow-btn {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  margin-left: 2px;
+}
+
+.settings-capsule-collapsed:hover .capsule-arrow-btn {
+  color: var(--ink);
 }
 
 .setting-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #ffffff;
-  padding: 5px 11px;
-  border-radius: 20px;
+  padding: 4px 10px;
+  border-radius: 9999px;
   border: 1px solid var(--border-hairline);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   font-size: 12px;
