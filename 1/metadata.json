@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K8T8Q5KGBB8F7R505E2VQE",
+  "session_id": "f7b51e3d-6fab-46da-9d1a-a5755dd4c7f4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T16:02:26.394093Z",
+  "branch": "feat/practice-levels",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "src/app/globals.css",
+    "src/components/coach.tsx"
+  ],
+  "agent": "Cursor",
+  "model": "grok-4.7-xhigh",
+  "turn_id": "203829715879",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 224039,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3959808,
+    "output_tokens": 19082,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T16:02:26.387682Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 277,
+    "total_committed": 0,
+    "total_lines_changed": 277,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 395,
+      "user_lines_removed": 280,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40,
+        "src/app/globals.css": 5,
+        "src/components/coach.tsx": 168,
+        "src/components/sunflower.tsx": 85,
+        "src/hooks/use-flower-camera.ts": 97
+      },
+      "user_removed_per_file": {
+        "src/components/coach.tsx": 277,
+        "src/components/sunflower.tsx": 3
+      }
+    }
+  ]
+}
