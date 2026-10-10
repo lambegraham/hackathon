@@ -3,16 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
+  Bot,
   Check,
   ChevronRight,
   Maximize2,
   MessageCircle,
   Mic,
   Minimize2,
-  PanelLeftClose,
-  PanelLeftOpen,
   RotateCcw,
   Send,
+  SlidersHorizontal,
   Sparkles,
   Square,
   Volume2
@@ -53,7 +53,6 @@ export function Coach() {
   const [busy, setBusy] = useState(false);
   const [micStarting, setMicStarting] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [stageMaximized, setStageMaximized] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<FeedbackReport | null>(null);
@@ -278,7 +277,6 @@ export function Coach() {
 
   const gridClass = [
     'studio-grid',
-    sidebarCollapsed && 'sidebar-collapsed',
     stageMaximized && 'stage-maximized'
   ].filter(Boolean).join(' ');
 
@@ -290,8 +288,27 @@ export function Coach() {
           <span className="brand-mark"><MessageCircle size={18} /></span>
           rehearsal<span className="brand-dot">.</span>
         </a>
-        <div className="topbar-actions">
-          <span className="preview-tag">Session</span>
+
+        {/* TOP-RIGHT HORIZONTAL CAPSULE FOR SCENARIO SWITCHING */}
+        <div className="topbar-right">
+          <nav className="scenario-capsule" aria-label="Scenarios">
+            {SCENARIOS.map((item, index) => (
+              <button
+                key={item.id}
+                className={`scenario-pill ${scenarioId === item.id ? 'active' : ''}`}
+                disabled={started}
+                onClick={() => setScenarioId(item.id)}
+              >
+                <span className="pill-symbol">{['↗', '€', '♡', '↔', '+'][index]}</span>
+                <span className="pill-title">{item.title}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="session-chip">
+            <span />
+            {report ? 'Session complete' : started ? 'In progress' : 'Ready'}
+          </div>
         </div>
       </header>
 
@@ -307,11 +324,37 @@ export function Coach() {
               : 'Big conversation? Start here.'}
           </h1>
         </div>
-        <div className="session-chip">
-          <span />
-          {report ? 'Session complete' : started ? 'In progress' : 'Ready'}
-        </div>
       </section>
+
+      {/* CUSTOM SCENARIO EDIT BANNER */}
+      {scenarioId === 'custom' && (
+        <div className="custom-scenario-banner">
+          <div className="custom-scenario-card">
+            <div className="custom-header">
+              <span className="eyebrow">CUSTOM SCENARIO CONFIGURATION</span>
+              <button
+                type="button"
+                className="custom-close-btn"
+                onClick={() => setScenarioId('interview')}
+                title="Switch to default scenario"
+              >
+                ×
+              </button>
+            </div>
+            <label htmlFor="custom-prompt">
+              Who are you speaking to, and what do you want to say?
+            </label>
+            <textarea
+              id="custom-prompt"
+              maxLength={2000}
+              disabled={started}
+              value={customScenario}
+              onChange={event => setCustomScenario(event.target.value)}
+              placeholder="e.g. Speaking with senior partner who is reluctant to approve a budget increase..."
+            />
+          </div>
+        </div>
+      )}
 
       {/* SETUP ALERTS */}
       {(setupFailed || (setup && !setup.gemini)) && (
@@ -359,83 +402,10 @@ export function Coach() {
         </section>
       ) : (
         <div className={gridClass}>
-          {/* LEFT: SCENARIO PANEL */}
-          <aside className="scenario-panel">
-            <div className="panel-heading">
-              <span>Scenarios</span>
-            </div>
-            <div className="scenario-list">
-              {SCENARIOS.map((item, index) => (
-                <button
-                  key={item.id}
-                  className={`scenario-card ${scenarioId === item.id ? 'selected' : ''}`}
-                  disabled={started}
-                  onClick={() => setScenarioId(item.id)}
-                >
-                  <span className="scenario-symbol">{['↗', '€', '♡', '↔', '+'][index]}</span>
-                  <span className="scenario-info">
-                    <strong>{item.title}</strong>
-                    <small>{item.description}</small>
-                  </span>
-                  {scenarioId === item.id && <Check size={15} className="scenario-check" />}
-                </button>
-              ))}
-            </div>
-
-            {scenarioId === 'custom' && (
-              <label className="custom-label">
-                Custom scenario
-                <textarea
-                  maxLength={2000}
-                  disabled={started}
-                  value={customScenario}
-                  onChange={event => setCustomScenario(event.target.value)}
-                  placeholder="Who are you speaking to, and what do you want to say?"
-                />
-              </label>
-            )}
-
-            <div className="difficulty">
-              <label htmlFor="difficulty">Their approach</label>
-              <select
-                id="difficulty"
-                value={difficulty}
-                disabled={started}
-                onChange={event => setDifficulty(event.target.value as Difficulty)}
-              >
-                <option value="friendly">Friendly</option>
-                <option value="neutral">Neutral</option>
-                <option value="challenging">Challenging</option>
-              </select>
-
-              <label htmlFor="voice">Their voice</label>
-              <select
-                id="voice"
-                value={voiceId}
-                disabled={started}
-                onChange={event => setVoiceId(event.target.value as VoiceId)}
-              >
-                {VOICES.map(item => (
-                  <option key={item.id} value={item.id}>{item.label}</option>
-                ))}
-              </select>
-            </div>
-          </aside>
-
           {/* CENTER: REHEARSAL STAGE */}
           <section className="stage-panel">
             <div className="stage-top">
-              <button
-                className="stage-tool-btn"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                title={sidebarCollapsed ? "Show scenarios" : "Hide scenarios"}
-              >
-                {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
-                <span>{sidebarCollapsed ? "Scenarios" : "Focus"}</span>
-              </button>
-
-              <span className="difficulty-badge">{difficulty}</span>
+              <span className={`difficulty-badge mood-${difficulty}`}>{difficulty}</span>
 
               <button
                 className="stage-tool-btn stage-tool-icon"
@@ -520,6 +490,46 @@ export function Coach() {
 
           {/* RIGHT: TRANSCRIPT PANEL */}
           <section className="transcript-panel">
+            {/* Top Compact Settings Strip (Model, Voice, Approach) */}
+            <div className="persona-settings-strip">
+              <div className="setting-chip" title="Voice">
+                <Mic size={13} className="chip-icon" />
+                <label htmlFor="voice" className="chip-label">Their voice</label>
+                <select
+                  id="voice"
+                  value={voiceId}
+                  disabled={started}
+                  onChange={event => setVoiceId(event.target.value as VoiceId)}
+                  className="chip-select"
+                >
+                  {VOICES.map(item => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="setting-chip" title="Approach">
+                <SlidersHorizontal size={13} className="chip-icon" />
+                <label htmlFor="difficulty" className="chip-label">Their approach</label>
+                <select
+                  id="difficulty"
+                  value={difficulty}
+                  disabled={started}
+                  onChange={event => setDifficulty(event.target.value as Difficulty)}
+                  className="chip-select"
+                >
+                  <option value="friendly">Friendly</option>
+                  <option value="neutral">Neutral</option>
+                  <option value="challenging">Challenging</option>
+                </select>
+              </div>
+
+              <div className="setting-chip model-chip" title="Active Model">
+                <Bot size={13} className="chip-icon" />
+                <span className="chip-text">Gemini 2.5</span>
+              </div>
+            </div>
+
             <div className="panel-heading">
               <div className="transcript-title">
                 <Volume2 size={15} />
