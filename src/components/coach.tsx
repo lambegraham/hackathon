@@ -1,33 +1,58 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronRight, MessageCircle, Mic, RotateCcw, Send, Sparkles, Square, Volume2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Mic, RotateCcw, Send, Square } from 'lucide-react';
 import { SCENARIOS } from '@/lib/scenarios';
-import { TONALITIES, tonalityById, userToneLabel } from '@/lib/tonality';
-import type { ConversationMessage, ConverseReply, FeedbackReport, Tonality, UserTone } from '@/lib/contracts';
+import { tonalityById, userToneLabel } from '@/lib/tonality';
+import type { ConversationMessage, ConverseReply, FeedbackReport, ScenarioId, Tonality, UserTone } from '@/lib/contracts';
 import { useVoiceSession } from '@/hooks/use-voice-session';
-import { Avatar, type AvatarState } from './avatar';
+import { Sunflower, type FlowerState } from './sunflower';
 
-type Difficulty = 'friendly' | 'neutral' | 'challenging';
 type Setup = { gemini: boolean; gradium: boolean };
-type ToneTag = { userTone?: UserTone; tonality?: Tonality };
+type Tones = { userTone?: UserTone; tonality?: Tonality };
+
+const PRACTICE = SCENARIOS.filter(item => item.id !== 'custom');
+const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
   return typeof body?.error === 'string' ? body.error : 'Something went wrong. Please try again.';
 }
 
+function Intro({ onDone }: { onDone: () => void }) {
+  const [phase, setPhase] = useState<'hold' | 'split'>('hold');
+  useEffect(() => {
+    const quick = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const split = setTimeout(() => setPhase('split'), quick ? 200 : 1100);
+    const done = setTimeout(onDone, quick ? 500 : 2300);
+    return () => { clearTimeout(split); clearTimeout(done); };
+  }, [onDone]);
+  return <div className={`intro intro-${phase}`} onClick={onDone} aria-hidden="true">
+    <span className="intro-word intro-left">Got credits?</span>
+    <span className="intro-word intro-right">:)</span>
+  </div>;
+}
+
+function Scenery() {
+  return <div className="scenery" aria-hidden="true">
+    <span className="cloud cloud-a" /><span className="cloud cloud-b" /><span className="cloud cloud-c" />
+    <svg className="hills" viewBox="0 0 1440 420" preserveAspectRatio="none">
+      <path d="M0 210C180 90 330 120 480 180s300 10 470-90 330 20 490 70v260H0z" fill="#b9cfa8" />
+      <path d="M0 290c200-90 380-60 560 0s340 40 520-30 280-40 360 0v160H0z" fill="#93b77f" />
+      <path d="M0 360c240-60 480-50 720 0s480 40 720-10v70H0z" fill="#79a564" />
+    </svg>
+  </div>;
+}
+
 export function Coach() {
-  const [scenarioId, setScenarioId] = useState('interview');
-  const [difficulty, setDifficulty] = useState<Difficulty>('neutral');
-  const [customScenario, setCustomScenario] = useState('');
-  const [voiceTone, setVoiceTone] = useState<Tonality | 'auto'>('auto');
+  const [intro, setIntro] = useState(true);
+  const endIntro = useCallback(() => setIntro(false), []);
+  const [scenarioId, setScenarioId] = useState<ScenarioId>('interview');
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  // Tone tags by message index; kept apart from messages, which the API validates strictly.
-  const [toneTags, setToneTags] = useState<Record<number, ToneTag>>({});
+  const [tones, setTones] = useState<Tones>({});
   const [draft, setDraft] = useState('');
-  const [state, setState] = useState<AvatarState>('idle');
+  const [state, setState] = useState<FlowerState>('idle');
   const [busy, setBusy] = useState(false);
   const [micStarting, setMicStarting] = useState(false);
   const [error, setError] = useState('');
@@ -40,14 +65,10 @@ export function Coach() {
   const controller = useRef<AbortController | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const audioUrl = useRef<string | null>(null);
-  const transcriptEnd = useRef<HTMLDivElement | null>(null);
   const scenario = SCENARIOS.find(item => item.id === scenarioId) ?? SCENARIOS[0];
-  const counterpart = ({ interview: 'Alex · Interviewer', raise: 'Alex · Your manager', relationship: 'Alex · Your partner', feedback: 'Alex · Your colleague', custom: 'Alex · Your counterpart' } as Record<string, string>)[scenarioId];
   const hasUserTurn = messages.some(message => message.role === 'user');
-  const recentTags = messages.map((_, index) => toneTags[index] ?? {}).reverse();
-  const latestUserTone = recentTags.find(tag => tag.userTone)?.userTone;
-  const latestTonality = recentTags.find(tag => tag.tonality)?.tonality ?? (voiceTone === 'auto' ? undefined : voiceTone);
-  const toneLabel = (tag?: ToneTag) => tag?.userTone ? `sounds ${userToneLabel(tag.userTone).toLowerCase()}` : tag?.tonality ? `${tonalityById(tag.tonality).label.toLowerCase()} voice` : '';
+  const lastReply = [...messages].reverse().find(message => message.role === 'assistant')?.content;
+  const lastAnswer = [...messages].reverse().find(message => message.role === 'user')?.content;
 
   function stopAudio() {
     audio.current?.pause();
@@ -65,15 +86,13 @@ export function Coach() {
     return () => { abort.abort(); controller.current?.abort(); stopAudio(); };
   }, []);
 
-  useEffect(() => { transcriptEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }); }, [messages, busy]);
-
   function reset() {
     generation.current += 1;
     controller.current?.abort();
     recorder.cancelRecording();
     stopAudio();
     lock.current = false;
-    setStarted(false); setMessages([]); setToneTags({}); setDraft(''); setReport(null);
+    setStarted(false); setMessages([]); setTones({}); setDraft(''); setReport(null);
     setError(''); setState('idle'); setBusy(false); setMicStarting(false);
   }
 
@@ -90,9 +109,9 @@ export function Coach() {
       audio.current = playback;
       await new Promise<void>((resolve, reject) => {
         playback.onended = () => resolve();
-        playback.onerror = () => reject(new Error('Audio could not play. Your reply is in the transcript.'));
+        playback.onerror = () => reject(new Error('Audio could not play. The reply is written above.'));
         signal.addEventListener('abort', () => { playback.pause(); resolve(); }, { once: true });
-        playback.play().then(() => { if (token === generation.current) setState('speaking'); }).catch(() => reject(new Error('Audio could not play. Your reply is in the transcript.')));
+        playback.play().then(() => { if (token === generation.current) setState('speaking'); }).catch(() => reject(new Error('Audio could not play. The reply is written above.')));
       });
     } catch (cause) {
       if (token === generation.current && !signal.aborted) setError(cause instanceof Error ? `${cause.message} You can continue by typing.` : 'Speech unavailable. You can continue by typing.');
@@ -100,7 +119,7 @@ export function Coach() {
   }
 
   function begin() {
-    if (!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())) return;
+    if (!setup?.gemini) return;
     setMessages([{ role: 'assistant', content: scenario.openingLine }]);
     setStarted(true); setError('');
   }
@@ -108,12 +127,12 @@ export function Coach() {
   async function sendTurn(text: string, token: number, signal: AbortSignal) {
     const next: ConversationMessage[] = [...messages, { role: 'user', content: text }];
     setMessages(next); setDraft(''); setState('thinking');
-    const response = await fetch('/api/converse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty, customScenario, tonality: voiceTone, messages: next }), signal });
+    const response = await fetch('/api/converse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty: 'neutral', tonality: 'auto', messages: next }), signal });
     if (!response.ok) throw new Error(await responseError(response));
     const { reply, userTone, tonality }: Partial<ConverseReply> & { reply: string } = await response.json();
     if (token !== generation.current) return;
     setMessages([...next, { role: 'assistant', content: reply }]);
-    setToneTags(tags => ({ ...tags, [next.length - 1]: { userTone }, [next.length]: { tonality } }));
+    setTones({ userTone, tonality });
     await speak(reply, token, signal, tonality);
   }
 
@@ -159,7 +178,7 @@ export function Coach() {
     const token = generation.current;
     const abort = new AbortController(); controller.current = abort;
     try {
-      const response = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty, customScenario, messages }), signal: abort.signal });
+      const response = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty: 'neutral', messages }), signal: abort.signal });
       if (!response.ok) throw new Error(await responseError(response));
       const feedback = await response.json();
       if (token === generation.current) setReport(feedback);
@@ -167,19 +186,57 @@ export function Coach() {
     finally { if (token === generation.current) { lock.current = false; setBusy(false); setState('idle'); } }
   }
 
-  const avatarState = recorder.isRecording ? 'listening' : state;
-  const statusText = micStarting ? 'Connecting your microphone' : recorder.isRecording ? 'Listening to you' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : started ? 'Your turn. Take your time.' : 'Ready when you are';
+  const flowerState: FlowerState = recorder.isRecording ? 'listening' : state;
+  const tone = tones.tonality && tonalityById(tones.tonality);
+  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
+  const headline = report ? 'Here’s what you can take with you.'
+    : feeling && tone ? `I’m sensing you feel ${feeling}, so I’m adapting ${article(tone.label)} ${tone.label.toLowerCase()} tone. ${tone.voiceName} is here to train you.`
+    : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.'
+    : 'Hi, I’m your practice sunflower. Pick a conversation and I’ll train you.';
+  const status = micStarting ? 'connecting your microphone' : recorder.isRecording ? 'listening' : state === 'thinking' ? 'thinking' : state === 'speaking' ? `${tone?.voiceName ?? 'sunflower'} is speaking` : started ? 'your turn' : 'ready when you are';
 
-  return <main className="app-shell">
-    <header className="topbar"><a href="/" className="brand" aria-label="Rehearsal home"><span className="brand-mark"><MessageCircle size={20} /></span>rehearsal<span className="brand-dot">.</span></a><span className="topbar-note">A little practice. A little more confidence.</span><span className="preview-tag">Conversation studio</span></header>
-    <section className="page-heading"><div><div className="eyebrow">SPACE TO TRY, ROOM TO GROW</div><h1>{report ? 'Take the practice with you.' : started ? 'You’ve got the floor.' : 'Big conversation? Start here.'}</h1><p>{report ? 'A few useful things to bring into your real conversation.' : 'Rehearse the words before the moment. No pressure to get it perfect.'}</p></div><div className="session-chip"><span />{report ? 'Session complete' : started ? 'Practice in progress' : 'Your private practice space'}</div></section>
-    {(setupFailed || (setup && !setup.gemini)) && <div className="setup-notice" role="status"><strong>{setupFailed ? 'Could not check service availability.' : 'Connect Gemini to start practising.'}</strong> {setupFailed ? 'Refresh the page to try again.' : 'Add GEMINI_API_KEY to the server environment, then restart the app.'}</div>}
-    {setup?.gemini && !setup.gradium && <div className="setup-notice" role="status">Voice is unavailable until GRADIUM_API_KEY is configured. You can practise by typing.</div>}
-    {report ? <section className="report-layout"><div className="report-card"><div className="eyebrow">YOUR SESSION NOTES</div><h2>A stronger next conversation.</h2><p className="report-summary">{report.summary}</p><div className="feedback-grid"><div><h3><Check size={18} /> What worked</h3>{report.strengths.map((item, index) => <p key={index}>{item}</p>)}</div><div><h3><Sparkles size={18} /> Try next time</h3>{report.improvements.map((item, index) => <p key={index}>{item}</p>)}</div></div><div className="suggested"><span className="eyebrow">WORDS TO MAKE YOUR OWN</span><blockquote>“{report.suggestedResponse}”</blockquote></div><button className="primary" onClick={reset}><RotateCcw size={17} /> Practise another conversation</button></div><aside className="report-side"><Avatar state="idle" /><h3>Practice counts.</h3><p>You don’t need perfect words. You need words that sound like you.</p><span>Session held in this browser only.</span></aside></section> : <div className="studio-grid">
-      <aside className="scenario-panel"><div className="panel-heading"><span>Choose your conversation</span><span className="small-label">{SCENARIOS.length} scenarios</span></div><div className="scenario-list">{SCENARIOS.map((item, index) => <button key={item.id} className={`scenario-card ${scenarioId === item.id ? 'selected' : ''}`} disabled={started} onClick={() => setScenarioId(item.id)}><span className="scenario-symbol">{['↗', '€', '♡', '↔', '+'][index]}</span><span><strong>{item.title}</strong><small>{item.description}</small></span>{scenarioId === item.id && <Check size={16} className="scenario-check" />}</button>)}</div>{scenarioId === 'custom' && <label className="custom-label">What would you like to practise?<textarea maxLength={2000} disabled={started} value={customScenario} onChange={event => setCustomScenario(event.target.value)} placeholder="Who are you speaking to, and what do you want to say?" /></label>}<div className="difficulty"><label htmlFor="difficulty">Their approach</label><select id="difficulty" value={difficulty} disabled={started} onChange={event => setDifficulty(event.target.value as Difficulty)}><option value="friendly">Friendly · a gentle start</option><option value="neutral">Neutral · keep it realistic</option><option value="challenging">Challenging · push yourself</option></select><p>You set the pace. Try a harder conversation when you’re ready.</p></div><div className="difficulty"><label htmlFor="voice-tone">Their voice tone</label><select id="voice-tone" value={voiceTone} onChange={event => setVoiceTone(event.target.value as Tonality | 'auto')}><option value="auto">Auto · match my tone</option>{TONALITIES.map(item => <option key={item.id} value={item.id}>{item.label} · {item.voiceName}</option>)}</select><p>Auto reads the tone of your words and answers in a matching voice.</p></div><div className="practice-note"><Sparkles size={17} /><p>One conversation.<br />A safe place to find your words.</p></div></aside>
-      <section className="stage-panel"><div className="stage-top"><span className="small-label">YOUR COUNTERPART</span><span className="difficulty-badge">{difficulty}</span></div><div className="avatar-stage"><div className="stage-orbit" /><Avatar state={avatarState} /><span className="counterpart-name">{counterpart}</span>{started && <div className="tone-readout" aria-live="polite">{latestUserTone && <><span>You sound <strong>{userToneLabel(latestUserTone).toLowerCase()}</strong></span><ArrowRight size={12} aria-hidden /></>}<span>{latestTonality ? <>{counterpart.split(' · ')[0]} answers <strong>{tonalityById(latestTonality).label.toLowerCase()}</strong> · {tonalityById(latestTonality).voiceName}’s voice</> : 'Tone: matches yours after your first answer'}</span></div>}<div className={`state-indicator state-${avatarState}`}><span />{statusText}</div></div><div className="stage-bottom">{!started ? <><h2>Let’s give it a go.</h2><p>Your counterpart will stay in character.<br />You’ll get practical feedback when you finish.</p><button className="primary start-button" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>Start practising <ArrowRight size={18} /></button></> : <><button className={`record-button ${recorder.isRecording ? 'recording' : ''}`} disabled={busy || !setup?.gradium} onClick={toggleRecording}>{recorder.isRecording ? <Square size={21} fill="currentColor" /> : <Mic size={23} />}<span>{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span></button><p className="record-help">{recorder.isRecording ? 'Click again to send your answer. Up to 60 seconds.' : 'Speak naturally, or use the text box.'}</p><div className="session-actions"><button disabled={busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End session & get feedback <ChevronRight size={15} /></button><button className="reset-button" onClick={reset} aria-label="Reset session"><RotateCcw size={16} /></button></div></>}<p className="privacy-note">Audio goes to Gradium; conversation text goes to Gemini.<br />Nothing is sent until you start speaking or send a message.</p></div></section>
-      <section className="transcript-panel"><div className="panel-heading"><span>Your conversation</span><Volume2 size={17} /></div><div className="transcript" aria-live="polite" aria-relevant="additions">{messages.length === 0 ? <div className="empty-transcript"><span><MessageCircle size={28} /></span><h3>The first words are yours.</h3><p>Your conversation will appear here. Speak or type—whatever feels comfortable.</p><div className="tip"><strong>A little tip</strong><p>Try speaking as you would in the real conversation, rather than describing what you’d say.</p></div></div> : messages.map((message, index) => <div key={index} className={`message message-${message.role}`}><span className="message-author">{message.role === 'user' ? 'You' : counterpart.split(' · ')[0]}{toneLabel(toneTags[index]) && <span className="tone-tag"> · {toneLabel(toneTags[index])}</span>}</span><p>{message.content}</p></div>)}{busy && state !== 'speaking' && <div className="thinking-message"><span /><span /><span /><small>{hasUserTurn ? 'Preparing a response' : 'Working on it'}</small></div>}<div ref={transcriptEnd} /></div>{(error || recorder.error) && <p className="error-message" role="alert">{error || recorder.error}</p>}<form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}><label className="sr-only" htmlFor="answer">Your answer</label><textarea id="answer" placeholder={started ? 'Or type your answer…' : 'Start a session to join the conversation'} value={draft} onChange={event => setDraft(event.target.value)} disabled={!started || busy || recorder.isRecording} maxLength={4000} rows={2} /><button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}><Send size={18} /></button></form><div className="composer-note">Your words. Your pace.</div></section>
-    </div>}
-    <footer className="footer"><span>Built for the conversations that matter.</span><span>Voice by Gradium <span className="footer-divider">/</span> Intelligence by Gemini</span></footer>
+  return <main className="garden">
+    {intro && <Intro onDone={endIntro} />}
+    <Scenery />
+    <header className="corner"><span className="corner-mark">Got credits? <b>:)</b></span><span className="corner-status">{status}</span></header>
+    <section className="stage">
+      <Sunflower state={flowerState} mood={(report ? undefined : tones.userTone) ?? 'happy'} />
+      <div className="copy">
+        <h1 className={`headline ${feeling && tone && !report ? 'headline-long' : ''}`} aria-live="polite">{headline}</h1>
+        {(setupFailed || (setup && !setup.gemini)) && <p className="notice" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Connect Gemini to start practising. Add GEMINI_API_KEY and restart the app.'}</p>}
+        {setup?.gemini && !setup.gradium && <p className="notice" role="status">Voice is off until GRADIUM_API_KEY is configured. You can still type.</p>}
+        {report ? <div className="report">
+          <p className="report-summary">{report.summary}</p>
+          <div className="report-grid">
+            <div><h2>What worked</h2>{report.strengths.map((item, index) => <p key={index}>{item}</p>)}</div>
+            <div><h2>Try next time</h2>{report.improvements.map((item, index) => <p key={index}>{item}</p>)}</div>
+          </div>
+          <blockquote>“{report.suggestedResponse}”</blockquote>
+          <button className="pill pill-solid" onClick={reset}><RotateCcw size={16} /> Practise again</button>
+        </div> : started && <div className="dialogue">
+          {lastAnswer && <p className="said-you">You: {lastAnswer}</p>}
+          {lastReply && <p className="said-flower">“{lastReply}”</p>}
+          {busy && state === 'thinking' && <p className="said-thinking">thinking…</p>}
+        </div>}
+        {(error || recorder.error) && <p className="error" role="alert">{error || recorder.error}</p>}
+      </div>
+      {!report && <div className="dock">
+        {!started ? <>
+          <div className="scenarios" role="group" aria-label="Conversation">{PRACTICE.map(item => <button key={item.id} className={`pill ${scenarioId === item.id ? 'pill-on' : ''}`} aria-pressed={scenarioId === item.id} onClick={() => setScenarioId(item.id)}>{item.title}</button>)}</div>
+          <button className="start" disabled={!setup?.gemini} onClick={begin}>Start practising <ArrowRight size={20} /></button>
+        </> : <>
+          <button className={`mic ${recorder.isRecording ? 'mic-on' : ''}`} disabled={busy || !setup?.gradium} onClick={toggleRecording}>{recorder.isRecording ? <Square size={22} fill="currentColor" /> : <Mic size={26} />}<span className="sr-only">{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span></button>
+          <form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
+            <label className="sr-only" htmlFor="answer">Your answer</label>
+            <input id="answer" placeholder="or type your answer…" value={draft} onChange={event => setDraft(event.target.value)} disabled={busy || recorder.isRecording} maxLength={4000} autoComplete="off" />
+            <button aria-label="Send answer" disabled={busy || recorder.isRecording || !draft.trim()}><Send size={18} /></button>
+          </form>
+          <div className="dock-actions">
+            <button className="pill" disabled={busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End session & get feedback</button>
+            <button className="pill pill-icon" onClick={reset} aria-label="Reset session"><RotateCcw size={16} /></button>
+          </div>
+        </>}
+      </div>}
+    </section>
   </main>;
 }

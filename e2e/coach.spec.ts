@@ -48,64 +48,66 @@ test('three turns preserve scenario/history, play voice, and produce feedback', 
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
   await page.screenshot({ path: 'test-results/rehearsal-desktop.png', fullPage: true });
   await page.getByRole('button', { name: /Ask for a raise/ }).click();
-  await page.getByLabel('Their approach').selectOption('challenging');
   await page.getByRole('button', { name: 'Start practising' }).click();
   const answers = ['I took ownership of onboarding.', 'It saved ten hours each month.', 'Could we agree on next steps?'];
   for (const [index, answer] of answers.entries()) {
     await page.getByLabel('Your answer').fill(answer);
     await page.getByRole('button', { name: 'Send answer' }).click();
-    await expect(page.getByText(`What evidence supports your request? Turn ${index + 1}.`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`What evidence supports your request? Turn ${index + 1}.`)).toBeVisible();
     await expect(page.getByLabel('Your answer')).toBeEnabled();
   }
   expect(requests).toHaveLength(3);
   expect(requests[2].scenarioId).toBe('raise');
-  expect(requests[2].difficulty).toBe('challenging');
+  expect(requests[2].difficulty).toBe('neutral');
   expect(requests[2].messages.filter(m => m.role === 'user').map(m => m.content)).toEqual([
     'I took ownership of onboarding.', 'It saved ten hours each month.', 'Could we agree on next steps?'
   ]);
   await page.getByRole('button', { name: 'End session & get feedback' }).click();
   await expect(page.getByText(report.summary)).toBeVisible();
   await expect(page.getByText(report.suggestedResponse, { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Practise another conversation' }).click();
+  await page.getByRole('button', { name: 'Practise again' }).click();
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible();
-  await expect(page.getByText('I took ownership of onboarding.', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('I took ownership of onboarding.')).toHaveCount(0);
 });
 
-test('detected tone is displayed and drives the reply voice, or a fixed tone is enforced', async ({ page }) => {
+test('sunflower states the detected feeling, adapted tone and voice, and shows it on its face', async ({ page }) => {
   await providers(page);
-  const conversed: { tonality?: string }[] = [];
   const spoken: { text: string; tonality?: string }[] = [];
+  const conversed: { tonality?: string }[] = [];
   await page.route('**/api/speak', route => {
     spoken.push(route.request().postDataJSON());
     return route.fulfill({ contentType: 'audio/wav', body: shortWav() });
   });
   await page.route('**/api/converse', route => {
-    const body = route.request().postDataJSON();
-    conversed.push(body);
-    const tonality = body.tonality === 'auto' ? 'reassuring' : body.tonality;
-    return route.fulfill({ json: { reply: `Take your time. Turn ${conversed.length}.`, userTone: 'nervous', tonality } });
+    conversed.push(route.request().postDataJSON());
+    const [userTone, tonality] = conversed.length === 1 ? ['nervous', 'reassuring'] : ['frustrated', 'empathic'];
+    return route.fulfill({ json: { reply: `Take your time. Turn ${conversed.length}.`, userTone, tonality } });
   });
   await page.goto('/');
-  await expect(page.getByLabel('Their voice tone')).toHaveValue('auto');
+  await expect(page.getByRole('img', { name: 'Sunflower happy to see you' })).toBeVisible();
   await page.getByRole('button', { name: 'Start practising' }).click();
-  await expect(page.getByText('Tone: matches yours after your first answer')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Talk to me. I’ll sense how you feel and adapt my tone.' })).toBeVisible();
   await page.getByLabel('Your answer').fill('Um, I think maybe I deserve more?');
   await page.getByRole('button', { name: 'Send answer' }).click();
-  await expect(page.getByText('Take your time. Turn 1.', { exact: true })).toBeVisible();
-  const readout = page.locator('.tone-readout');
-  await expect(readout).toContainText('You sound nervous');
-  await expect(readout).toContainText('answers reassuring · Hadley’s voice');
-  await expect(page.getByText('· sounds nervous')).toBeVisible();
-  await expect(page.getByText('· reassuring voice')).toBeVisible();
-  await expect(page.getByLabel('Your answer')).toBeEnabled();
-  await page.getByLabel('Their voice tone').selectOption('confident');
-  await page.getByLabel('Your answer').fill('I led onboarding.');
+  await expect(page.getByRole('heading', { name: 'I’m sensing you feel nervous, so I’m adapting a reassuring tone. Hadley is here to train you.' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Sunflower looking nervous' })).toBeVisible();
+  await page.locator('.flower').screenshot({ path: 'test-results/sunflower-nervous.png' });
+  await page.getByLabel('Your answer').fill('Nobody has answered me for weeks.');
   await page.getByRole('button', { name: 'Send answer' }).click();
-  await expect(page.getByText('Take your time. Turn 2.', { exact: true })).toBeVisible();
-  await expect(readout).toContainText('answers confident · Harrison’s voice');
-  await expect(page.getByLabel('Your answer')).toBeEnabled();
-  expect(conversed.map(body => body.tonality)).toEqual(['auto', 'confident']);
-  expect(spoken.map(body => body.tonality)).toEqual(['reassuring', 'confident']);
+  await expect(page.getByRole('heading', { name: 'I’m sensing you feel frustrated, so I’m adapting an empathic tone. Drew is here to train you.' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Sunflower looking frustrated' })).toBeVisible();
+  await page.locator('.flower').screenshot({ path: 'test-results/sunflower-frustrated.png' });
+  expect(conversed.map(body => body.tonality)).toEqual(['auto', 'auto']);
+  expect(spoken.map(body => body.tonality)).toEqual(['reassuring', 'empathic']);
+});
+
+test('intro shows Got credits? :) and then reveals the sunflower', async ({ page }) => {
+  await providers(page, false);
+  await page.goto('/');
+  await expect(page.locator('.intro')).toContainText('Got credits?');
+  await expect(page.locator('.intro')).toContainText(':)');
+  await expect(page.locator('.intro')).toHaveCount(0, { timeout: 5000 });
+  await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
 });
 
 test('microphone sends a genuine WAV, then transcribes and plays the reply', async ({ page }) => {
@@ -125,12 +127,12 @@ test('microphone sends a genuine WAV, then transcribes and plays the reply', asy
   await page.goto('/');
   await page.getByRole('button', { name: 'Start practising' }).click();
   await page.getByRole('button', { name: 'Record your answer' }).click();
-  await expect(page.getByText('Listening to you', { exact: true })).toBeVisible();
+  await expect(page.locator('.corner-status').getByText('listening', { exact: true })).toBeVisible();
   // Give the synthetic test microphone enough samples to exercise the worklet.
   await page.waitForTimeout(600);
   await page.getByRole('button', { name: 'Finish & send' }).click();
-  await expect(page.getByText('I would like to discuss my responsibilities.', { exact: true })).toBeVisible();
-  await expect(page.getByText('What has changed in your role?', { exact: true })).toBeVisible();
+  await expect(page.getByText('You: I would like to discuss my responsibilities.')).toBeVisible();
+  await expect(page.getByText('What has changed in your role?')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Record your answer' })).toBeEnabled();
   expect(receivedAudio).toBe(true);
 });
@@ -143,7 +145,7 @@ test('failed speech preserves reply and allows a typed next turn', async ({ page
   await page.getByRole('button', { name: 'Start practising' }).click();
   await page.getByLabel('Your answer').fill('I built an onboarding tool.');
   await page.getByRole('button', { name: 'Send answer' }).click();
-  await expect(page.getByText('Tell me about the result.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tell me about the result.')).toBeVisible();
   await expect(page.getByRole('alert').filter({ hasText: 'Speech unavailable' })).toBeVisible();
   await expect(page.getByLabel('Your answer')).toBeEnabled();
 });
@@ -167,11 +169,11 @@ test('reset cancels a pending response and prevents stale transcript updates', a
   await page.getByRole('button', { name: 'Start practising' }).click();
   await page.getByLabel('Your answer').fill('Please help me rehearse.');
   await page.getByRole('button', { name: 'Send answer' }).click();
-  await expect(page.getByText('Please help me rehearse.', { exact: true })).toBeVisible();
+  await expect(page.getByText('You: Please help me rehearse.')).toBeVisible();
   await page.getByRole('button', { name: 'Reset session' }).click();
   release();
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible();
-  await expect(page.getByText('A stale response.', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('A stale response.')).toHaveCount(0);
 });
 
 test('mobile layout keeps setup and controls within the viewport', async ({ page }) => {

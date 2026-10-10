@@ -1,6 +1,6 @@
 # Conversation Coach
 
-Practise the conversations that matter before having them for real. Choose a scenario and difficulty, speak to an animated counterpart, and finish with two strengths, two improvements and a better way to phrase your response.
+Practise the conversations that matter before having them for real. Choose a scenario, talk to a sunflower that senses your tone and adapts its voice, and finish with two strengths, two improvements and a better way to phrase your response.
 
 Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b8023c53570998144). Scenarios: job interview, salary negotiation, relationship conversation, difficult feedback, and a custom scenario.
 
@@ -25,13 +25,13 @@ For the submission, identify the features as Gradium REST STT and TTS, include t
 
 ## Demo
 
-Select **Ask for a raise**, set the difficulty, and start practice. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
+The page opens with a short “Got credits? :)” intro, then a sunflower in a garden. Pick **Ask for a raise** and start practising. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
 
-The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The avatar has idle, listening, thinking and speaking states.
+The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The sunflower’s face mirrors the detected feeling and has listening, thinking and talking states.
 
 ## Voice tonality
 
-Each turn, Gemini classifies the tone of the wording of your latest message (`confident`, `calm`, `enthusiastic`, `neutral`, `hesitant`, `nervous`, `defensive`, `frustrated`, `upset`) and picks a tonality for its reply. The page shows both, for example "You sound nervous → Alex answers reassuring · Hadley’s voice". **Their voice tone** switches between **Auto · match my tone** and a fixed tonality, which the server enforces. Tone is judged from words only; Gradium STT returns text, not prosody.
+Each turn, Gemini classifies the tone of the wording of your latest message (`confident`, `calm`, `enthusiastic`, `neutral`, `hesitant`, `nervous`, `defensive`, `frustrated`, `upset`) and picks a tonality for its reply. The page states both in bold, for example “I’m sensing you feel nervous, so I’m adapting a reassuring tone. Hadley is here to train you.” The UI always uses `auto`; the API still accepts a fixed `tonality`, which the server enforces. Tone is judged from words only; Gradium STT returns text, not prosody.
 
 Gradium TTS has no tone parameter: tonality is a property of the voice (its `emotion` tag in Studio). Each tonality maps to a catalog en-US voice in `src/lib/tonality.ts`: calm (Holly), reassuring (Hadley), empathic (Drew), friendly (Wendy), confident (Harrison), excited (Quinn), neutral (Kelsey). Override any of them with `GRADIUM_VOICE_<TONALITY>`, for example `GRADIUM_VOICE_CALM`. Speech without a tonality still uses `GRADIUM_VOICE_ID`.
 
@@ -41,7 +41,7 @@ Conversation turns use `thinkingLevel: LOW`. Gemini 3 thinking tokens count agai
 
 | Area | Files | Team responsibility |
 | --- | --- | --- |
-| Rehearsal UI | `src/components/`, `src/app/` | Scenarios, avatar, transcript, feedback |
+| Rehearsal UI | `src/components/`, `src/app/` | Intro, sunflower, tone sentence, feedback |
 | Microphone | `src/hooks/`, `src/lib/audio.ts` | WAV capture and resource cleanup |
 | Conversation | `src/lib/server/`, `src/app/api/converse/` | Gemini prompts and full history |
 | Voice services | `src/app/api/transcribe/`, `src/app/api/speak/` | Gradium STT/TTS |
@@ -92,4 +92,4 @@ The requested upgrade replaces Gemini 2.5 Flash with `gemini-3.8-flash` for conv
 - [Gradium STT REST](https://docs.gradium.ai/guides/speech-to-text-rest): raw WAV upload, NDJSON text segments
 - [Gradium TTS REST](https://docs.gradium.ai/guides/text-to-speech-rest): WAV output with `only_audio: true`
 
-Dependencies: Next.js, React, TypeScript, Tailwind CSS, Lucide icons, Google GenAI, Zod. Validation: Vitest, Playwright, ESLint. The avatar is an original SVG implemented in the app.
+Dependencies: Next.js, React, TypeScript, Tailwind CSS, Lucide icons, Google GenAI, Zod. Validation: Vitest, Playwright, ESLint. The sunflower is an original SVG in `src/components/sunflower.tsx`; fonts are Bricolage Grotesque and Inter Tight via `next/font`.
