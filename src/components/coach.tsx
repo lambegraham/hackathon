@@ -1,28 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, Maximize2, Minimize2, MessageCircle, Mic, RotateCcw, Send, Square, Volume2 } from 'lucide-react';
+import { AudioLines, ClipboardList, Mic, Phone, RotateCcw, Send, Square, Video, Volume2 } from 'lucide-react';
 import { createDuplexSession } from '@/lib/duplex-session';
-import { createSessionAudio, type AudioRecording } from '@/lib/session-audio';
-import { loadAudioRecording, deleteSessionAudio, clearSessionAudio } from '@/lib/audio-storage';
-import { saveRecordedSession } from '@/lib/save-recorded-session';
-import { analyseSessionAudio } from '@/lib/analyse-session-audio';
 import { createStreamingPlayer } from '@/lib/streaming-audio';
 import { VOICES, type VoiceId } from '@/lib/voices';
 import { SCENARIOS } from '@/lib/scenarios';
 import type { ConversationMessage, ConverseReply, FeedbackReport, ScenarioId, SpeechMetadata, Tonality, UserTone } from '@/lib/contracts';
+import { useFlowerCamera } from '@/hooks/use-flower-camera';
 import { useVoiceSession } from '@/hooks/use-voice-session';
 import type { AvatarState } from './avatar';
-import { readProfile, deleteSession, clearProfile, getComparableSessions, setPracticeCompleted, type SavedSession } from '@/lib/profile';
+import { readProfile, saveSession, deleteSession, clearProfile, getComparableSessions, type SavedSession } from '@/lib/profile';
 import { SessionReport } from './session-report';
 import { ProfileDashboard } from './profile-dashboard';
 import { Sunflower } from './sunflower';
-import { Wardrobe } from './wardrobe';
 import { OUTFITS } from './outfits';
 import { tonalityById, userToneLabel } from '@/lib/tonality';
-import { GardenScenery } from './garden-scenery';
 import './profile.css';
-import './garden-studio.css';
 
 type Difficulty = 'friendly' | 'neutral' | 'challenging';
 type Setup = { gemini: boolean; gradium: boolean };
@@ -31,14 +25,6 @@ const textMessages = (messages: ConversationMessage[]) => messages.map(({role,co
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
   return typeof body?.error === 'string' ? body.error : 'Something went wrong. Please try again.';
-}
-
-function SoundWave({ active = false, color = 'blue' }: { active?: boolean; color?: 'blue' | 'slate' }) {
-  return (
-    <div className={`sound-wave ${active ? 'active' : ''} sound-wave-${color}`} aria-hidden="true">
-      <span /><span /><span /><span /><span /><span /><span />
-    </div>
-  );
 }
 
 function Intro({ onDone }: { onDone: () => void }) {
@@ -60,7 +46,7 @@ export function Coach() {
   const endIntro = useCallback(() => setIntro(false), []);
   const [tones, setTones] = useState<{ userTone?: UserTone; tonality?: Tonality }>({});
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [stageMaximized, setStageMaximized] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [scenarioId, setScenarioId] = useState<ScenarioId>('interview');
   const [voiceId, setVoiceId] = useState<VoiceId | 'auto'>('auto');
   const [preparingVoice, setPreparingVoice] = useState(false);
@@ -89,6 +75,7 @@ export function Coach() {
   const [setup, setSetup] = useState<Setup | null>(null);
   const [setupFailed, setSetupFailed] = useState(false);
   const recorder = useVoiceSession();
+  const camera = useFlowerCamera();
   const lock = useRef(false);
   const generation = useRef(0);
   const sessionGeneration = useRef(0);
@@ -102,24 +89,9 @@ export function Coach() {
   const scenario = SCENARIOS.find(item => item.id === scenarioId) ?? SCENARIOS[0];
   const voice = VOICES.find(item => item.id === voiceId);
   const tone = tones.tonality && tonalityById(tones.tonality);
-  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
   const outfit = OUTFITS.find(item => item.id === scenarioId)?.id;
   const counterpart = `${voice?.name ?? tone?.voiceName ?? 'Sunflower'} · ${({ interview: 'Interviewer', raise: 'Your manager', relationship: 'Your partner', feedback: 'Your colleague', custom: 'Your counterpart', flatmate: 'Your flatmate', coldcall: 'Your customer', bazaar: 'Your buyer' } as Record<string, string>)[scenarioId]}`;
   const hasUserTurn = messages.some(message => message.role === 'user');
-  const capturedAudio = useRef<ReturnType<typeof createSessionAudio> | null>(null);
-  const captureError = useRef('');
-  const [audioBusy, setAudioBusy] = useState(false);
-  const [localAudio, setLocalAudio] = useState<{ sessionId: string; recordings: AudioRecording[] } | null>(null);
-
-  function collectAudio(samples: Float32Array, rate: number) {
-    if (captureError.current) return;
-    capturedAudio.current ??= createSessionAudio();
-    try { capturedAudio.current.push(samples, rate); }
-    catch (cause) {
-      captureError.current = cause instanceof Error ? cause.message : 'Recording could not continue.';
-      setError(captureError.current);
-    }
-  }
 
   function stopAudio(preserveContext = live.current) {
     player.current?.stop(preserveContext);
@@ -155,18 +127,27 @@ export function Coach() {
   useEffect(() => { transcriptEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }); }, [messages, busy, partial]);
 
   useEffect(() => {
+    if (profileOpen || reportOpen) camera.stop();
+  }, [profileOpen, reportOpen, camera.stop]);
+
+  useEffect(() => {
+    try { setSavedSessions([...readProfile().sessions].reverse()); }
+    catch { /* The call still starts. Profile reports its own error when opened. */ }
+  }, []);
+
+  useEffect(() => {
     if (!recorder.isRecording) return;
     const timer = setInterval(() => setRecordingSeconds(seconds => Math.min(60, seconds + 1)), 1000);
     return () => clearInterval(timer);
   }, [recorder.isRecording]);
 
   function reset() {
+    camera.stop();
     stopLive();
     recorder.cancelRecording();
-    capturedAudio.current?.reset(); captureError.current = ''; setLocalAudio(null); setAudioBusy(false);
     lock.current = false;
     setTones({}); setRecordingSeconds(0);
-    setStarted(false); updateMessages([]); setDraft(''); setReport(null);
+    setStarted(false); updateMessages([]); setDraft(''); setReport(null); setReportOpen(false);
     setError(''); setState('idle'); setBusy(false); setMicStarting(false); setPreparingVoice(false);
     setPracticeQuestion(''); setCurrentSession(null); setSaveError(''); setReportSaved(false); setProfileOpen(false); sessionMeta.current = null;
   }
@@ -188,24 +169,11 @@ export function Coach() {
     }
   }
 
-  async function begin() {
-    if (lock.current || !setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())) return;
-    const opening = practiceQuestion || scenario.openingLine;
-    updateMessages([{ role: 'assistant', content: opening }]);
+  function begin() {
+    if (!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())) return;
+    updateMessages([{ role: 'assistant', content: practiceQuestion || scenario.openingLine }]);
     sessionMeta.current = { id: crypto.randomUUID(), startedAt: new Date().getTime() };
     setStarted(true); setError('');
-    if (!setup.gradium) return;
-    const token = ++generation.current;
-    const abort = new AbortController(); controller.current = abort;
-    lock.current = true; setBusy(true); setPreparingVoice(true);
-    try {
-      await getPlayer().prepare();
-      if (token === generation.current && !abort.signal.aborted) await speak(opening, token, abort.signal);
-    } catch {
-      if (token === generation.current && !abort.signal.aborted) setError('Audio could not start. You can continue by typing.');
-    } finally {
-      if (token === generation.current) { lock.current = false; setBusy(false); setPreparingVoice(false); setState('idle'); }
-    }
   }
 
   async function sendTurn(text: string, token: number, signal: AbortSignal, speechReady: boolean, speech?: SpeechMetadata) {
@@ -263,7 +231,7 @@ export function Coach() {
     lock.current = true; setBusy(true); setMicStarting(true);
     setError(''); setPartial(''); stopAudio();
     setRecordingSeconds(0);
-    try { await recorder.startRecording(text => { if (token === generation.current) setPartial(text); }, collectAudio); } catch { /* Recorder displays its actionable error. */ }
+    try { await recorder.startRecording(text => { if (token === generation.current) setPartial(text); }); } catch { /* Recorder displays its actionable error. */ }
     finally {
       if (token === generation.current) {
         lock.current = false; setBusy(false); setMicStarting(false); setPreparingVoice(false);
@@ -273,11 +241,6 @@ export function Coach() {
 
   async function finish() {
     if (lock.current || !hasUserTurn || recorder.isRecording) return;
-    const finishingSession = sessionMeta.current?.id;
-    lock.current = true; setBusy(true);
-    try { await duplex.current?.finishCapture(); }
-    catch (cause) { captureError.current = cause instanceof Error ? cause.message : 'The recording may end slightly early.'; }
-    if (!finishingSession || sessionMeta.current?.id !== finishingSession) return;
     stopLive();
     lock.current = true; setBusy(true); setState('thinking'); setError(''); stopAudio(false);
     const token = ++generation.current;
@@ -292,23 +255,11 @@ export function Coach() {
       if (!response.ok) throw new Error(await responseError(response));
       const feedback = await response.json();
       if (token === generation.current && sessionMeta.current) {
-        const recordings = capturedAudio.current?.finish() ?? [];
-        const session: SavedSession = { id: sessionMeta.current.id, completedAt: new Date().toISOString(), scenarioId: scenarioId as ScenarioId, difficulty, ...(snapshot.targetRole ? {targetRole:snapshot.targetRole} : {}), ...(scenarioId === 'custom' ? { customScenario } : {}), durationSeconds: Math.min(86400, Math.max(0, Math.round((new Date().getTime() - sessionMeta.current.startedAt) / 1000))), messages: [...messagesRef.current], report: feedback,
-          ...(recordings.length ? { audio: { recordings: recordings.map(({ id, durationSeconds }) => ({ id, durationSeconds })), analyses: [], ...(captureError.current ? {captureWarning:captureError.current} : {}) } } : {}) };
-        setLocalAudio({ sessionId: session.id, recordings });
-        setReport(feedback); setCurrentSession(session);
-        await persistSession(session, recordings);
-        if (recordings.length && token === generation.current) {
-          setAudioBusy(true);
-          const audio = await analyseSessionAudio(recordings, [], abort.signal);
-          if (token !== generation.current) return;
-          const analysed = { ...session, audio: { ...audio, ...(session.audio?.captureWarning ? {captureWarning:session.audio.captureWarning} : {}) } };
-          setCurrentSession(current => current?.id === session.id ? analysed : current);
-          await persistSession(analysed, recordings);
-        }
+        const session: SavedSession = { id: sessionMeta.current.id, completedAt: new Date().toISOString(), scenarioId: scenarioId as ScenarioId, difficulty, ...(snapshot.targetRole ? {targetRole:snapshot.targetRole} : {}), ...(scenarioId === 'custom' ? { customScenario } : {}), durationSeconds: Math.min(86400, Math.max(0, Math.round((new Date().getTime() - sessionMeta.current.startedAt) / 1000))), messages: [...messagesRef.current], report: feedback };
+        setReport(feedback); setCurrentSession(session); persistSession(session);
       }
     } catch (cause) { if (token === generation.current && !abort.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not create feedback. Try again.'); }
-    finally { if (token === generation.current) { lock.current = false; setBusy(false); setAudioBusy(false); setState('idle'); setPreparingVoice(false); } }
+    finally { if (token === generation.current) { lock.current = false; setBusy(false); setState('idle'); setPreparingVoice(false); } }
   }
 
   function updateMessages(next: ConversationMessage[]) {
@@ -334,15 +285,6 @@ export function Coach() {
     setLiveActive(false); setLiveStarting(false); setPartial('');
   }
 
-  async function finishLive() {
-    const capture = duplex.current;
-    try { await capture?.finishCapture(); }
-    catch (cause) {
-      captureError.current = cause instanceof Error ? cause.message : 'The recording may end slightly early.';
-      setError(captureError.current);
-    } finally { if (duplex.current === capture) stopLive(); }
-  }
-
   useEffect(() => { liveTurn.current = (text, speech) => runTurn('text', text, speech); });
 
   async function startLive() {
@@ -354,7 +296,6 @@ export function Coach() {
       await getPlayer().prepare();
       if (session !== sessionGeneration.current) return;
       const capture = createDuplexSession({
-        onAudio: collectAudio,
         onSpeechStart: () => { if (session === sessionGeneration.current) interruptResponse(); },
         onTranscript: text => { if (session === sessionGeneration.current) setPartial(text); },
         onTurn: (text, speech) => {
@@ -380,13 +321,10 @@ export function Coach() {
   }
 
 
-  async function persistSession(session: SavedSession, recordings = localAudio?.sessionId === session.id ? localAudio.recordings : []) {
-    const epoch = generation.current;
+  function persistSession(session: SavedSession) {
     try {
-      const result = await saveRecordedSession(session, recordings, () => epoch === generation.current);
-      if (!result || epoch !== generation.current) return;
-      setSavedSessions([...result.profile.sessions].reverse()); setSaveError(result.warning ?? ''); setProfileError(''); setReportSaved(!result.warning);
-      setCurrentSession(current => current?.id === session.id ? result.session : current);
+      const profile = saveSession(session);
+      setSavedSessions([...profile.sessions].reverse()); setSaveError(''); setProfileError(''); setReportSaved(true);
     } catch (cause) {
       setReportSaved(false); setSaveError(cause instanceof Error ? cause.message : 'This report could not be saved locally.');
       try { setSavedSessions([...readProfile().sessions].reverse()); } catch { /* Keep the report available if existing storage cannot be read. */ }
@@ -399,53 +337,16 @@ export function Coach() {
     setProfileOpen(true);
   }
 
-  async function changeHistory(id?: string) {
+  function changeHistory(id?: string) {
     try {
-      if (audioBusy) { interruptResponse(); setAudioBusy(false); }
-      if (id) await deleteSessionAudio(id); else await clearSessionAudio();
       const profile = id ? deleteSession(id) : clearProfile();
       setSavedSessions([...profile.sessions].reverse()); setProfileError('');
       if (!id || id === currentSession?.id) setReportSaved(false);
-      if (!id || id === localAudio?.sessionId) setLocalAudio(null);
     } catch (cause) { setProfileError(cause instanceof Error ? cause.message : 'Your profile could not be updated.'); }
   }
 
-  async function retryAudioAnalysis() {
-    if (!currentSession?.audio || audioBusy) return;
-    const session = currentSession;
-    const token = ++generation.current;
-    const abort = new AbortController(); controller.current = abort;
-    setAudioBusy(true);
-    try {
-      const recordings = await Promise.all(session.audio!.recordings.map(async recording => {
-        const blob = localAudio?.sessionId === session.id ? localAudio.recordings.find(item => item.id === recording.id)?.blob : await loadAudioRecording(session.id, recording.id);
-        if (!blob) throw new Error('This recording is no longer available in this browser.');
-        return { ...recording, blob };
-      }));
-      const audio = await analyseSessionAudio(recordings, session.audio!.analyses, abort.signal);
-      if (token !== generation.current) return;
-      const updated = { ...session, audio: { ...audio, ...(session.audio?.captureWarning ? {captureWarning:session.audio.captureWarning} : {}) } };
-      setCurrentSession(current => current?.id === session.id ? updated : current);
-      await persistSession(updated, recordings);
-    } catch (cause) {
-      if (token === generation.current) setSaveError(cause instanceof Error ? cause.message : 'Audio analysis could not complete.');
-    } finally { if (token === generation.current) setAudioBusy(false); }
-  }
-
   function openSavedSession(session: SavedSession) {
-    setCurrentSession(session); setReport(session.report); setReportSaved(true); setSaveError(''); setProfileOpen(false);
-  }
-
-  function completePractice(completed: boolean) {
-    if (!currentSession) return;
-    try {
-      const profile = setPracticeCompleted(currentSession.id, completed);
-      const updated = profile.sessions.find(item => item.id === currentSession.id);
-      if (updated) setCurrentSession(updated);
-      setSavedSessions([...profile.sessions].reverse()); setSaveError('');
-    } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Your practice progress could not be saved.');
-    }
+    setCurrentSession(session); setReport(session.report); setReportSaved(true); setSaveError(''); setProfileOpen(false); setReportOpen(true);
   }
 
   function practiseAnswer(messageIndex: number) {
@@ -462,253 +363,155 @@ export function Coach() {
   }
 
   const avatarState = state === 'speaking' || state === 'thinking' ? state : recorder.isRecording || liveActive ? 'listening' : state;
-  const statusText = liveStarting || micStarting ? 'Connecting your microphone' : preparingVoice ? 'Preparing voice' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : recorder.isRecording ? 'Listening to you' : liveActive ? 'Listening · you can interrupt anytime' : started ? 'Your turn. Take your time.' : 'Ready when you are';
-
-  const headline = report ? 'Here’s what you can take with you.'
-    : feeling && tone ? `I’m sensing you feel ${feeling}, so I’m adapting ${/^[aeiou]/i.test(tone.label) ? 'an' : 'a'} ${tone.label.toLowerCase()} tone. ${voice?.name ?? tone.voiceName} is here to train you.`
-    : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.'
-    : 'Hi, I’m your practice sunflower. Dress me for the talk you want to train.';
-
-  const gridClass = [
-    'studio-grid',
-    stageMaximized && 'stage-maximized'
-  ].filter(Boolean).join(' ');
+  const statusText = liveStarting || micStarting ? 'Connecting your microphone' : preparingVoice ? 'Preparing voice' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : recorder.isRecording ? 'Listening to you' : liveActive ? 'Listening. You can interrupt anytime.' : started ? 'Your turn. Take your time.' : 'Ready when you are';
+  const assistantLine = [...messages].reverse().find(message => message.role === 'assistant')?.content;
+  const yourLine = [...messages].reverse().find(message => message.role === 'user')?.content;
+  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
+  const feelingLine = feeling && tone
+    ? `I’m sensing you feel ${feeling}, so I’m adapting ${/^[aeiou]/i.test(tone.label) ? 'an' : 'a'} ${tone.label.toLowerCase()} tone. ${voice?.name ?? tone.voiceName} is here to train you.`
+    : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.' : null;
+  const shortName: Record<string, string> = { interview: 'Job interview', raise: 'Ask for a raise', relationship: 'Relationship', feedback: 'Feedback', flatmate: 'Flatmate', coldcall: 'Cold call', bazaar: 'Bazaar', custom: 'Your own' };
+  const keyMissing = setupFailed || (setup !== null && !setup.gemini);
+  const clock = `${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`;
+  const showLive = recorder.isRecording || liveActive;
+  const alternate = profileOpen || (reportOpen && currentSession);
 
   return (
-    <main className="app-shell wardrobe-app">
-      <GardenScenery />
+    <main className={alternate ? 'app-shell' : 'call-shell'}>
       {intro && <Intro onDone={endIntro} />}
-      {/* TOPBAR */}
-      <header className="topbar">
-        <a href="/" className="brand" aria-label="Any resets? home">
-          <span className="brand-mark"><MessageCircle size={18} /></span>
-          any resets<span className="brand-dot">?</span>
-        </a>
-        <div className="topbar-actions">
-          <button className="profile-button" onClick={openProfile} disabled={started && !report}>My profile</button>
+      {profileOpen ? <ProfileDashboard sessions={savedSessions} error={profileError} onOpen={openSavedSession} onDelete={id => changeHistory(id)} onClear={() => changeHistory()} onBack={() => setProfileOpen(false)} /> : reportOpen && currentSession ? (
+        <div className="call-report">
+          <button className="secondary-button" onClick={() => setReportOpen(false)}>Back to the call</button>
+          <SessionReport session={currentSession} sessions={savedSessions} saveError={saveError} saved={reportSaved} onRetry={() => persistSession(currentSession)} onPractise={reset} onPractiseAnswer={practiseAnswer} onOpen={openSavedSession} />
         </div>
-      </header>
-
-      {/* SETUP ALERTS */}
-      {(setupFailed || (setup && !setup.gemini)) && (
-        <div className="setup-notice" role="status">
-          <strong>{setupFailed ? 'Could not check service availability.' : 'Connect Gemini to start practising.'}</strong>{' '}
-          {setupFailed ? 'Refresh the page to try again.' : 'Add GEMINI_API_KEY to the server environment, then restart the app.'}
-        </div>
-      )}
-      {setup?.gemini && !setup.gradium && (
-        <div className="setup-notice" role="status">
-          Voice is unavailable until GRADIUM_API_KEY is configured. You can practise by typing.
-        </div>
-      )}
-
-      {/* REPORT VIEW OR ACTIVE STUDIO */}
-      {profileOpen ? <ProfileDashboard sessions={savedSessions} error={profileError} onOpen={openSavedSession} onDelete={id => changeHistory(id)} onClear={() => changeHistory()} onBack={() => setProfileOpen(false)} /> : report && currentSession ? <SessionReport session={currentSession} sessions={savedSessions} saveError={saveError} saved={reportSaved} onRetry={reportSaved ? undefined : () => persistSession(currentSession)} onPractise={reset} onPractiseAnswer={practiseAnswer} onCompletePractice={reportSaved && !audioBusy ? completePractice : undefined} onOpen={openSavedSession} onRetryAudio={() => void retryAudioAnalysis()} audioBusy={audioBusy} localRecordings={localAudio?.sessionId === currentSession.id ? localAudio.recordings : undefined} /> : (
-        <div className={`${gridClass} ${started ? 'garden-active' : 'garden-setup'}`}>
-          <section className="page-heading">
-            <div className="eyebrow">{scenario.title.toUpperCase()}</div>
-            <h1 aria-live="polite">{headline}</h1>
-          </section>
-
-          <aside className="scenario-panel">
-            {!started && outfit && <Wardrobe value={outfit} onChange={id => { setScenarioId(id); setPracticeQuestion(''); }} />}
-            {!started && <button
-              className="primary start-button"
-              disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())}
-              onClick={begin}
-            >Start practising <ArrowRight size={20} /></button>}
-            <div className="garden-settings">
-              {!started && <label className="custom-label">Conversation
-                <select aria-label="Conversation" value={scenarioId} onChange={event => { setScenarioId(event.target.value as ScenarioId); setPracticeQuestion(''); }}>
-                  {SCENARIOS.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+      ) : (
+        <>
+          <section className="call-center">
+            <header className="call-top">
+              <a href="/" className="call-brand">AnyResets</a>
+              <div className="call-pills">
+                <select className="call-pill" aria-label="Scenario" value={scenarioId} disabled={started} onChange={event => { setScenarioId(event.target.value as ScenarioId); setPracticeQuestion(''); }}>
+                  {SCENARIOS.map(item => <option key={item.id} value={item.id}>{shortName[item.id] ?? item.title}</option>)}
                 </select>
-              </label>}
-              {scenarioId === 'interview' && <label className="custom-label" htmlFor="target-role">Target role
-                <input id="target-role" maxLength={200} disabled={started} value={targetRole} onChange={event => setTargetRole(event.target.value)} placeholder="e.g. Backend Engineer" />
-              </label>}
-              <label className="custom-label" htmlFor="difficulty">Their approach
-                <select id="difficulty" value={difficulty} disabled={started} onChange={event => setDifficulty(event.target.value as Difficulty)}>
+                {scenarioId === 'interview' && (
+                  <input id="target-role" className="call-pill call-pill-tiny" aria-label="Target role" maxLength={200} disabled={started} value={targetRole} onChange={event => setTargetRole(event.target.value)} placeholder="Target role" />
+                )}
+                {scenarioId === 'custom' && (
+                  <input className="call-pill call-pill-text" aria-label="What would you like to practise?" maxLength={1500} disabled={started} value={customScenario} onChange={event => { setCustomScenario(event.target.value); setPracticeQuestion(''); }} placeholder="Who you are speaking to" />
+                )}
+                <select className="call-pill call-pill-tiny" id="difficulty" aria-label="Their approach" value={difficulty} disabled={started} onChange={event => setDifficulty(event.target.value as Difficulty)}>
                   <option value="friendly">Friendly</option>
                   <option value="neutral">Neutral</option>
                   <option value="challenging">Challenging</option>
                 </select>
-              </label>
-              <label className="custom-label" htmlFor="voice">Their voice
-                <select id="voice" value={voiceId} disabled={started} onChange={event => setVoiceId(event.target.value as VoiceId | 'auto')}>
+                <select className="call-pill call-pill-tiny" id="voice" aria-label="Their voice" value={voiceId} disabled={started} onChange={event => setVoiceId(event.target.value as VoiceId | 'auto')}>
                   <option value="auto">Automatic tone</option>
                   {VOICES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
-              </label>
-              {scenarioId === 'custom' && <label className="custom-label garden-custom-scenario">What would you like to practise?
-                <textarea maxLength={1500} disabled={started} value={customScenario} onChange={event => { setCustomScenario(event.target.value); setPracticeQuestion(''); }} placeholder="Who are you speaking to, and what do you want to say?" />
-              </label>}
-            </div>
-          </aside>
-
-          {/* PRACTICE SUNFLOWER */}
-          <section className="stage-panel">
-            <div className="stage-top">
-              <span className="difficulty-badge">{difficulty}</span>
-
-              <button
-                className="stage-tool-btn stage-tool-icon"
-                onClick={() => setStageMaximized(!stageMaximized)}
-                aria-label={stageMaximized ? "Restore view" : "Maximize stage"}
-                title={stageMaximized ? "Exit full view" : "Full stage"}
-              >
-                {stageMaximized ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              </button>
-            </div>
-
-            <div className="avatar-stage">
-              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} />
-
-              <div className="stage-persona">
-                <span className="counterpart-name">{counterpart}</span>
-                {avatarState === 'speaking' && (
-                  <SoundWave active={true} color="blue" />
+              </div>
+              <div className="call-top-actions">
+                {showLive && (
+                  <span className="call-rec" role="status">
+                    <span />
+                    {recorder.isRecording ? `Recording ${clock}` : 'Live'}
+                  </span>
                 )}
+                {started && (
+                  <button className={`call-live${liveActive || liveStarting ? ' call-live-on' : ''}`} type="button" aria-label={liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'} disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
+                    <AudioLines size={16} />
+                  </button>
+                )}
+                {started && (
+                  <button className="call-over" type="button" onClick={reset} aria-label="Reset session"><RotateCcw size={15} /></button>
+                )}
+                <button className="call-nav" type="button" aria-label="My profile" onClick={openProfile} disabled={started && !report}>
+                  <ClipboardList size={16} />
+                  <span>Feedback</span>
+                </button>
               </div>
+              <p className="call-status" aria-live="polite">{statusText}</p>
+            </header>
 
-              {statusText && (
-                <div className={`state-indicator state-${avatarState}`}>
-                  <span />
-                  {statusText}
+            <div className="call-frame">
+              <div className="call-room" aria-hidden="true">
+                <div className="call-window" />
+                <div className="call-lamp" />
+                <div className="call-desk" />
+              </div>
+              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} frame="chest" />
+              <video ref={camera.videoRef} className={`flower-self-view${camera.on ? ' on' : ''}`} playsInline muted aria-hidden={!camera.on} aria-label={camera.on ? 'Your camera. Stop camera.' : undefined} onClick={() => { if (camera.on) camera.stop(); }} />
+              {assistantLine && (
+                <div className="call-bubble">
+                  <Volume2 size={15} aria-hidden="true" />
+                  <p>{assistantLine}</p>
                 </div>
               )}
-            </div>
-
-            <div className="stage-bottom">
+              {busy && state !== 'speaking' && !assistantLine && (
+                <p className="call-wait">{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</p>
+              )}
+              {partial && <p className="call-partial" aria-label="Live transcript">{partial}</p>}
+              {yourLine && <p className="sr-only">{yourLine}</p>}
+              {camera.note ? <p className="call-note" role="status">{camera.note}</p> : null}
+              {recorder.liveTranscriptError && recorder.isRecording && <p className="call-note" role="status">{recorder.liveTranscriptError}</p>}
+              {(error || recorder.error) && <p className="call-alert" role="alert">{error || recorder.error}</p>}
               {started && (
-                <div className="stage-controls-area">
-                  {recorder.isRecording && (
-                    <div className="recording-status-row" aria-live="polite">
-                      <span className="rec-pulse-dot" />
-                      <span className="rec-time-text">
-                        {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:
-                        {String(recordingSeconds % 60).padStart(2, '0')} / 01:00
-                      </span>
-                      <SoundWave active={true} color="slate" />
-                    </div>
-                  )}
-
-                  <div className="record-container">
-                    <button className={`record-button ${liveActive ? 'recording' : ''}`} aria-describedby="live-voice-help" disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive ? void finishLive() : liveStarting ? stopLive() : void startLive()}>
-                      {liveActive || liveStarting ? <Square size={18} /> : <Mic size={20} />}
-                      <span>{liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'}</span>
-                    </button>
-                    <p className="record-help" id="live-voice-help">{liveActive ? 'Speak naturally. Pause to send, or interrupt your counterpart.' : 'Hands-free conversation, with automatic turn taking.'}</p>
-                  </div>
-                  <div className="record-container">
-                    <button
-                      className={`record-button record-button-secondary ${recorder.isRecording ? 'recording' : ''}`}
-                      disabled={busy || liveActive || liveStarting || !setup?.gradium}
-                      onClick={toggleRecording}
-                    >
-                      {recorder.isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={20} />}
-                      <span>{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span>
-                    </button>
-                  </div>
-
-                  <div className="session-actions">
-                    <button
-                      disabled={busy || !hasUserTurn || recorder.isRecording}
-                      onClick={finish}
-                    >
-                      End session & get feedback <ChevronRight size={14} />
-                    </button>
-                    <button className="reset-button" onClick={reset} aria-label="Reset session">
-                      <RotateCcw size={15} />
-                    </button>
-                  </div>
-                  <p className="record-help">Microphone audio is recorded locally and sent to Gemini after the session for your speech report. Up to 10 recorded minutes.</p>
-                </div>
+                <form className="call-composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
+                  <label className="sr-only" htmlFor="answer">Your answer</label>
+                  <textarea id="answer" placeholder="Or type your answer…" value={draft} onChange={event => setDraft(event.target.value)} disabled={busy || recorder.isRecording} maxLength={4000} rows={1} />
+                  <button type="submit" aria-label="Send answer" disabled={busy || recorder.isRecording || !draft.trim()}><Send size={16} /></button>
+                </form>
               )}
-            </div>
-          </section>
-
-          {/* CONVERSATION */}
-          <section className="transcript-panel">
-            <div className="panel-heading">
-              <div className="transcript-title">
-                <Volume2 size={15} />
-                <span>Conversation</span>
+              <div className="call-dock">
+                <div className="call-dock-item">
+                  <button className={`call-orb${recorder.isRecording ? ' call-orb-hot' : ''}`} type="button" aria-label={recorder.isRecording ? 'Finish & send' : 'Record your answer'} disabled={!started || busy || liveActive || liveStarting || !setup?.gradium} onClick={toggleRecording}>
+                    {recorder.isRecording ? <Square size={16} fill="currentColor" /> : <Mic size={20} />}
+                  </button>
+                  <span>Record</span>
+                </div>
+                {!started ? (
+                  <div className="call-dock-item">
+                    <button className="call-orb call-orb-go" type="button" aria-label="Start practising" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>
+                      <Phone size={22} />
+                    </button>
+                    <span>Start</span>
+                  </div>
+                ) : (
+                  <div className="call-dock-item">
+                    <button className="call-orb call-orb-hangup" type="button" aria-label="End session & get feedback" disabled={!!report || busy || !hasUserTurn || recorder.isRecording} onClick={finish}>
+                      <Phone size={22} />
+                    </button>
+                    <span>End</span>
+                  </div>
+                )}
+                <div className="call-dock-item">
+                  <button className={`call-orb${camera.on ? ' call-orb-on' : ''}`} type="button" aria-pressed={camera.on} aria-label={camera.on ? 'Stop camera' : 'Use camera'} onClick={() => camera.on ? camera.stop() : void camera.start()}>
+                    <Video size={20} />
+                  </button>
+                  <span>Camera</span>
+                </div>
               </div>
-              <span className="turn-count-badge">
-                {messages.length > 0 ? `${messages.filter(m => m.role === 'user').length} turns` : 'Ready'}
-              </span>
             </div>
-
-            <div className="transcript" aria-live="polite" aria-relevant="additions">
-              {messages.length === 0 ? (
-                <div className="empty-transcript">
-                  <span><MessageCircle size={24} /></span>
-                  <h3>The first words are yours.</h3>
-                </div>
-              ) : (
-                messages.map((message, index) => {
-                  const isUser = message.role === 'user';
-                  const userTurnNumber = messages.slice(0, index + 1).filter(m => m.role === 'user').length;
-
-                  return (
-                    <div key={index} className="message-wrapper">
-                      {isUser && (
-                        <div className="turn-divider">
-                          <span className="turn-divider-label">Round {userTurnNumber}</span>
-                        </div>
-                      )}
-                      <div className={`message message-${message.role}`}>
-                        <div className="message-header">
-                          <span className="message-author">
-                            {isUser ? 'You' : counterpart.split(' · ')[0]}
-                          </span>
-                        </div>
-                        <p>{message.content}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-
-              {busy && state !== 'speaking' && (
-                <div className="thinking-message">
-                  <span /><span /><span />
-                  <small>{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</small>
-                </div>
-              )}
-              {partial && <div className="message message-user live-transcript" aria-label="Live transcript" aria-live="off"><span className="message-author">You · {recorder.isRecording || liveActive ? 'speaking' : 'transcribing'}</span><p>{partial}<span className="transcript-caret" aria-hidden="true" /></p></div>}
+            <div className="sr-only" aria-live="polite">
+              {messages.map((message, index) => <p key={index}>{message.role === 'user' ? 'You' : counterpart.split(' · ')[0]}: {message.content}</p>)}
               <div ref={transcriptEnd} />
             </div>
-
-            {recorder.liveTranscriptError && recorder.isRecording && <p className="record-help" role="status">{recorder.liveTranscriptError}</p>}
-            {(error || recorder.error) && (
-              <p className="error-message" role="alert">{error || recorder.error}</p>
-            )}
-
-            <form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
-              <label className="sr-only" htmlFor="answer">Your answer</label>
-              <textarea
-                id="answer"
-                placeholder={started ? 'Or type your answer…' : 'Start a session to join'}
-                value={draft}
-                onChange={event => setDraft(event.target.value)}
-                disabled={!started || busy || recorder.isRecording}
-                maxLength={4000}
-                rows={2}
-              />
-              <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}>
-                <Send size={16} />
-              </button>
-            </form>
           </section>
-        </div>
-      )}
 
-      {/* FOOTER */}
-      <footer className="footer">
-        <span>Conversation Coach</span>
-        <span>Voice by Gradium <span className="footer-divider">/</span> Gemini</span>
-      </footer>
+          <aside className="call-advice">
+            <h2>{feelingLine ?? scenario.title}</h2>
+            {report && report.improvements.length > 0 ? (
+              <ul>
+                {report.improvements.slice(0, 2).map((item, index) => <li key={index}>{item}</li>)}
+              </ul>
+            ) : (
+              <p>{scenario.description}</p>
+            )}
+            {keyMissing && (
+              <p className="call-key" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Add GEMINI_API_KEY, then restart.'}</p>
+            )}
+          </aside>
+        </>
+      )}
     </main>
   );
 }

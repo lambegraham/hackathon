@@ -1,0 +1,138 @@
+.preview-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.preview-page h1 {
+  margin: 0 0 6px;
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -1px;
+  line-height: 1.15;
+}
+
+.preview-lead {
+  margin: 0 0 18px;
+  color: var(--muted);
+}
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.preview-actions button {
+  border: 0;
+  border-radius: 11px;
+  background: var(--blue);
+  color: white;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.preview-actions button.preview-secondary {
+  border: 1px solid #d5deea;
+  background: white;
+  color: var(--ink);
+}
+
+.preview-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.preview-card {
+  margin: 0;
+}
+
+.preview-frame {
+  position: relative;
+  height: 340px;
+  overflow: hidden;
+  border: 1px solid #dfe6f0;
+  border-radius: 16px;
+  background: #f6f8fc;
+}
+
+.preview-frame canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.preview-card figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 650;
+  text-align: center;
+}
+
+.preview-miss {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.preview-status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.preview-credit {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-credit a {
+  text-decoration: underline;
+}
+
+.preview-video {
+  position: fixed;
+  width: 160px;
+  height: 120px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .preview-frame {
+    height: 300px;
+  }
+}
+
+@media (max-width: 520px) {
+  .preview-page {
+    padding: 20px 16px 36px;
+  }
+
+  .preview-page h1 {
+    font-size: 26px;
+    letter-spacing: -0.6px;
+  }
+
+  .preview-frame {
+    height: 280px;
+  }
+}

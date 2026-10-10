@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { clearProfile, compareSession, deleteSession, getComparableSessions, PROFILE_STORAGE_KEY, ProfileStorageError, readProfile, saveSession, type ProfileStorage, type SavedSession } from './profile';
+import { clearProfile, compareSession, deleteSession, getComparableSessions, PROFILE_STORAGE_KEY, ProfileStorageError, readProfile, saveSession, sessionNumber, type ProfileStorage, type SavedSession } from './profile';
 
 class MemoryStorage implements ProfileStorage {
   value: string | null = null;
@@ -115,6 +115,10 @@ describe('evidence-based comparisons', () => {
     const harder = session('harder',{difficulty:'challenging'});
     const future = session('future',{completedAt:'2026-10-13T10:00:00.000Z'});
     expect(getComparableSessions(current,[prior,harder,future,current,unrelated,old]).map(s=>s.id)).toEqual(['old','prior']);
+    expect(sessionNumber(old,[old,prior,current,unrelated])).toBe(1);
+    expect(sessionNumber(prior,[old,prior,current,unrelated])).toBe(2);
+    expect(sessionNumber(current,[old,prior,current,unrelated])).toBe(3);
+    expect(sessionNumber(unrelated,[old,prior,current,unrelated])).toBe(1);
     const comparison = compareSession(current,[old,prior,unrelated]);
     expect(comparison?.previousSessionId).toBe('prior');
     expect(comparison?.metrics[0]).toMatchObject({key:'clarity',current:3,previous:3,delta:0});

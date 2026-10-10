@@ -1,5 +1,41 @@
+'use client';
+
+import { useEffect, useRef, type RefObject } from 'react';
 import type { UserTone } from '@/lib/contracts';
 import { OutfitArt, type OutfitId } from './outfits';
+
+export type FaceLook = { x: number; y: number };
+
+/** Face box center in the camera frame, as -1..1 from the middle. */
+export function faceLook(
+  box: { x: number; y: number; width: number; height: number },
+  frameWidth: number,
+  frameHeight: number,
+): FaceLook {
+  if (frameWidth <= 0 || frameHeight <= 0) return { x: 0, y: 0 };
+  const cx = (box.x + box.width / 2) / frameWidth;
+  const cy = (box.y + box.height / 2) / frameHeight;
+  return {
+    x: Math.max(-1, Math.min(1, (cx - 0.5) * 2)),
+    y: Math.max(-1, Math.min(1, (cy - 0.5) * 2)),
+  };
+}
+
+export const LENS_LOOK: FaceLook = { x: 0, y: 0 };
+
+const LOOK_YAW = 7;
+const LOOK_SHIFT_X = 14;
+const LOOK_SHIFT_Y = 9;
+const EYE_SHIFT_X = 6;
+const EYE_SHIFT_Y = 4;
+
+function headTransform(look: FaceLook) {
+  return `translate(${(look.x * LOOK_SHIFT_X).toFixed(2)} ${(look.y * LOOK_SHIFT_Y).toFixed(2)}) rotate(${(look.x * LOOK_YAW).toFixed(2)} 200 200)`;
+}
+
+function eyeTransform(look: FaceLook) {
+  return `translate(${(look.x * EYE_SHIFT_X).toFixed(2)} ${(look.y * EYE_SHIFT_Y).toFixed(2)})`;
+}
 
 export type FlowerState = 'idle' | 'listening' | 'thinking' | 'speaking';
 export type FlowerMood = UserTone | 'happy';
@@ -42,14 +78,58 @@ function Eye({ x, kind }: { x: number; kind: Eyes }) {
   </g>;
 }
 
-export function Sunflower({ state, mood, outfit }: { state: FlowerState; mood: FlowerMood; outfit?: OutfitId }) {
+export function Sunflower({ state, mood, outfit, lookAt, frame = 'full' }: { state: FlowerState; mood: FlowerMood; outfit?: OutfitId; lookAt?: RefObject<FaceLook | null>; frame?: 'full' | 'chest' }) {
+  const gazeRef = useRef<SVGGElement>(null);
+  const eyesRef = useRef<SVGGElement>(null);
+  const targetRef = useRef(lookAt);
+  targetRef.current = lookAt;
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const current = { x: 0, y: 0 };
+    let frame = 0;
+    let last = performance.now();
+    const apply = (look: FaceLook) => {
+      gazeRef.current?.setAttribute('transform', headTransform(look));
+      eyesRef.current?.setAttribute('transform', eyeTransform(look));
+    };
+    const tick = (now: number) => {
+      const delta = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const reduced = media.matches;
+      const aim = reduced ? LENS_LOOK : (targetRef.current?.current ?? LENS_LOOK);
+      if (reduced) {
+        current.x = 0;
+        current.y = 0;
+      } else {
+        const follow = 1 - Math.exp(-8 * delta);
+        current.x += (aim.x - current.x) * follow;
+        current.y += (aim.y - current.y) * follow;
+        if (Math.hypot(aim.x - current.x, aim.y - current.y) < 0.004) {
+          current.x = aim.x;
+          current.y = aim.y;
+        }
+      }
+      apply(current);
+      frame = requestAnimationFrame(tick);
+    };
+    apply(LENS_LOOK);
+    frame = requestAnimationFrame(tick);
+    const onChange = () => { if (media.matches) apply(LENS_LOOK); };
+    media.addEventListener('change', onChange);
+    return () => {
+      cancelAnimationFrame(frame);
+      media.removeEventListener('change', onChange);
+    };
+  }, []);
+
   const base = FACES[mood];
   const face: Face = state === 'listening'
     ? { ...base, brows: BROW.raised, eyes: 'wide', mouth: 'M200 219a8 10 0 1 0 .1 0z', mouthFilled: true }
     : state === 'thinking' ? { ...base, brows: BROW.quizzical, eyes: 'up', mouth: 'M190 228q8 4 18-2', sweat: false, tear: false } : base;
   const label = state === 'listening' ? 'listening' : state === 'thinking' ? 'thinking' : mood === 'happy' ? 'happy to see you' : `looking ${mood}`;
   return <div className={`flower flower-${state}`} data-mood={mood} data-outfit={outfit}>
-    <svg viewBox="0 0 400 600" role="img" aria-label={`Sunflower ${label}`}>
+    <svg viewBox={frame === 'chest' ? '24 0 352 470' : '0 0 400 600'} role="img" aria-label={`Sunflower ${label}`}>
       <defs>
         <radialGradient id="petal" cx="35%" cy="30%" r="80%"><stop offset="0" stopColor="#fff3a6" /><stop offset=".45" stopColor="#ffd23f" /><stop offset="1" stopColor="#f0a414" /></radialGradient>
         <radialGradient id="petal-back" cx="40%" cy="30%" r="80%"><stop offset="0" stopColor="#ffd75e" /><stop offset="1" stopColor="#e08a0b" /></radialGradient>
@@ -64,6 +144,7 @@ export function Sunflower({ state, mood, outfit }: { state: FlowerState; mood: F
         <path d="M205 510c-36-50-96-58-122-38 26 32 74 50 122 38z" fill="url(#leaf)" filter="url(#soft)" />
       </g>
       <g className="flower-head" filter="url(#soft)">
+        <g ref={gazeRef} className="flower-gaze">
         <g className="petals petals-back">{PETALS.map(angle => <ellipse key={angle} cx="200" cy="96" rx="30" ry="64" fill="url(#petal-back)" transform={`rotate(${angle + 11.25} 200 200)`} />)}</g>
         <g className="petals petals-front">{PETALS.map(angle => <ellipse key={angle} cx="200" cy="104" rx="28" ry="58" fill="url(#petal)" transform={`rotate(${angle} 200 200)`} />)}</g>
         <circle cx="200" cy="200" r="84" fill="url(#disc)" />
@@ -71,7 +152,7 @@ export function Sunflower({ state, mood, outfit }: { state: FlowerState; mood: F
         <g className="face" key={`${state}-${mood}`}>
           {face.blush && <><ellipse cx="160" cy="214" rx="13" ry="8" fill="#ff8a7a" opacity=".55" /><ellipse cx="240" cy="214" rx="13" ry="8" fill="#ff8a7a" opacity=".55" /></>}
           <path d={face.brows[0]} className="face-line" /><path d={face.brows[1]} className="face-line" />
-          <g className="eyes"><Eye x={170} kind={face.eyes} /><Eye x={230} kind={face.eyes} /></g>
+          <g ref={eyesRef}><g className="eyes"><Eye x={170} kind={face.eyes} /><Eye x={230} kind={face.eyes} /></g></g>
           {state === 'speaking'
             ? <ellipse className="talking-mouth" cx="200" cy="226" rx="15" ry="11" fill="#2b1a10" />
             : <path d={face.mouth} className="face-line" fill={face.mouthFilled ? '#2b1a10' : 'none'} />}
@@ -79,6 +160,7 @@ export function Sunflower({ state, mood, outfit }: { state: FlowerState; mood: F
           {face.tear && <path d="M166 204q7 11 0 16a5 5 0 0 1-7-5q2-5 7-11z" fill="#9fd4ff" stroke="#5aa6e0" strokeWidth="1.5" />}
         </g>
         {outfit && <g className="outfit" key={outfit}><OutfitArt id={outfit} /></g>}
+        </g>
       </g>
     </svg>
   </div>;

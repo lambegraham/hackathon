@@ -16,14 +16,9 @@ test('garden wardrobe, profile and feedback share a responsive visual style', as
   });
   await page.goto('/');
   await expect(page.locator('.intro')).toHaveCount(0, { timeout: 10000 });
-  await expect(page.locator('.scenery')).toBeVisible();
+  await expect(page.locator('.call-frame .flower')).toBeVisible();
   await expect(page.locator('.aura-visualizer-canvas')).toHaveCount(0);
-  expect(await page.locator('.wardrobe').evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(400);
-  expect(await page.locator('.wardrobe').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(62, 92, 65)');
-  expect(await page.locator('.flower > svg').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(450);
-  await page.getByRole('radio', { name: 'Job interview: Suit & tie' }).focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('radio', { name: 'Relationship breakup: Handbag & pearls' })).toBeChecked();
+  await page.getByLabel('Scenario').selectOption('relationship');
   await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'relationship');
   await page.screenshot({ path: '/private/tmp/garden-wardrobe-desktop.png', fullPage: true, animations: 'disabled' });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -46,5 +41,5 @@ test('garden wardrobe, profile and feedback share a responsive visual style', as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '/private/tmp/garden-report-mobile.png', fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Practise another conversation' }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Choose an outfit' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible();
 });
