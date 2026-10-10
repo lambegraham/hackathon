@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JVNXDSJ271N1KEQ2TQTS2R",
+  "session_id": "01a125b6-7929-72e1-bd4d-5acccc65aa72",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T12:12:53.831712Z",
+  "branch": "feat/conversation-coach",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "01c46b4546c2",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 105458,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2211712,
+    "output_tokens": 3151,
+    "api_call_count": 30,
+    "subagent_tokens_complete": false
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 205,
+      "user_lines_removed": 4,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".codex/hooks.json": 88,
+        ".env.example": 3,
+        "README.md": 13,
+        "next-env.d.ts": 2,
+        "package.json": 2,
+        "scripts/check-gradium.mjs": 52,
+        "src/lib/server/gradium-check.test.ts": 45
+      },
+      "user_removed_per_file": {
+        ".env.example": 1,
+        "next-env.d.ts": 2,
+        "package.json": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 88,
+      "user_lines_removed": 0,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 4,
+      "user_added_per_file": {
+        ".codex/hooks.json": 88
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 88,
+      "user_lines_removed": 0,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 4,
+      "user_added_per_file": {
+        ".codex/hooks.json": 88
+      }
+    }
+  ]
+}
