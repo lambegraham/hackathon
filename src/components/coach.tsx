@@ -352,7 +352,7 @@ export function Coach() {
             </button>
           </div>
           <aside className="report-side">
-            <Avatar state="idle" gender={voice.gender} scenario={scenarioId} />
+            <Avatar state="idle" gender={voice.gender} scenario={scenarioId} difficulty={difficulty} />
             <h3>Practice counts.</h3>
             <span>Session held in this browser only.</span>
           </aside>
@@ -449,7 +449,7 @@ export function Coach() {
 
             <div className="avatar-stage">
               <div className="stage-orbit" />
-              <Avatar state={avatarState} gender={voice.gender} scenario={scenarioId} />
+              <Avatar state={avatarState} gender={voice.gender} scenario={scenarioId} difficulty={difficulty} />
 
               <div className="stage-persona">
                 <span className="counterpart-name">{counterpart}</span>

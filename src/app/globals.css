@@ -442,129 +442,202 @@ h1 {
   pointer-events: none;
 }
 
+/* FLUID ACOUSTIC AURA (DYNAMIC RESONANCE HALO) */
 .avatar {
-  width: 290px; /* 适当放大，成为舞台绝对主角 */
+  width: 280px;
+  height: 280px;
   position: relative;
   z-index: 1;
-  display: flex;
-  justify-content: center;
-}
-
-.avatar-frame {
-  position: relative;
-  width: 270px;
-  height: 310px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.avatar-ambient-glow {
-  position: absolute;
-  inset: -10px;
-  border-radius: 28px;
-  background: radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.12), transparent 70%);
-  opacity: 0.7;
-  filter: blur(12px);
-  transition: all 0.5s ease;
-  z-index: 0;
-}
-
-.avatar-listening .avatar-ambient-glow {
-  background: radial-gradient(circle at 50% 30%, rgba(5, 150, 105, 0.22), transparent 70%);
-  opacity: 1;
-  inset: -16px;
-}
-
-.avatar-speaking .avatar-ambient-glow {
-  background: radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.3), transparent 70%);
-  opacity: 1;
-  inset: -20px;
-  animation: glow-pulse 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes glow-pulse {
-  from { transform: scale(0.98); opacity: 0.8; }
-  to { transform: scale(1.05); opacity: 1; }
-}
-
-.avatar-ripple-ring {
-  position: absolute;
-  inset: -12px;
-  border-radius: 32px;
-  border: 2px solid rgba(37, 99, 235, 0.35);
-  animation: ripple-wave 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.avatar-listening .avatar-ripple-ring {
-  border-color: rgba(5, 150, 105, 0.4);
-}
-
-@keyframes ripple-wave {
-  0% { transform: scale(0.96); opacity: 0.8; }
-  100% { transform: scale(1.14); opacity: 0; }
-}
-
-.avatar-image-container {
+.halo-container {
   position: relative;
+  width: 270px;
+  height: 270px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
+}
+
+.halo-atmospheric-glow {
+  position: absolute;
+  inset: -20px;
+  border-radius: 50%;
+  opacity: 0.6;
+  filter: blur(28px);
+  transition: all 0.6s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Default / Neutral Aura Glow */
+.avatar-mood-neutral .halo-atmospheric-glow {
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.28) 0%, rgba(37, 99, 235, 0.12) 55%, transparent 75%);
+}
+
+/* Friendly Aura Glow (Emerald / Cyan Warmth) */
+.avatar-mood-friendly .halo-atmospheric-glow {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, rgba(6, 182, 212, 0.15) 55%, transparent 75%);
+}
+
+/* Challenging Aura Glow (Fiery Crimson / Ruby Intensity) */
+.avatar-mood-challenging .halo-atmospheric-glow {
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.32) 0%, rgba(249, 115, 22, 0.16) 55%, transparent 75%);
+}
+
+.halo-svg {
   width: 100%;
   height: 100%;
-  border-radius: 24px;
-  overflow: hidden;
-  background: #111827;
-  box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  overflow: visible;
+  position: relative;
   z-index: 1;
 }
 
-.avatar-photo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 15%;
-  display: block;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+/* Central Resonance Core */
+.halo-core {
+  fill: #ffffff;
+  fill-opacity: 0.03;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1px;
 }
 
-/* 呼吸微浮动微交互 */
-.avatar-idle .avatar-photo {
-  animation: portrait-breathe 6s ease-in-out infinite;
+/* Base Wave Styling */
+.halo-wave-1, .halo-wave-2, .halo-wave-3 {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: 150px 150px;
 }
 
-.avatar-listening .avatar-photo {
-  transform: scale(1.03) translateY(-2px);
-  filter: contrast(1.04) brightness(1.02);
+.halo-wave-1 {
+  stroke-width: 11px;
+  stroke: url(#halo-neutral-grad-1);
+  opacity: 0.95;
+  animation: halo-rotate-cw 12s linear infinite;
 }
 
-.avatar-thinking .avatar-photo {
-  transform: rotate(-1.5deg) scale(0.99);
-  filter: brightness(0.98);
+.halo-wave-2 {
+  stroke-width: 9px;
+  stroke: url(#halo-neutral-grad-2);
+  opacity: 0.8;
+  animation: halo-rotate-ccw 9s linear infinite;
 }
 
-.avatar-speaking .avatar-photo {
-  animation: portrait-speak 0.7s ease-in-out infinite alternate;
+.halo-wave-3 {
+  stroke-width: 4px;
+  stroke: #38bdf8;
+  opacity: 0.65;
+  animation: halo-rotate-cw 18s ease-in-out infinite alternate;
 }
 
-@keyframes portrait-breathe {
-  0%, 100% { transform: scale(1) translateY(0); }
-  50% { transform: scale(1.015) translateY(-3px); }
-}
+/* Mood-based Gradient Bindings */
+.avatar-mood-friendly .halo-wave-1 { stroke: url(#halo-friendly-grad-1); }
+.avatar-mood-friendly .halo-wave-2 { stroke: url(#halo-friendly-grad-2); }
+.avatar-mood-friendly .halo-wave-3 { stroke: #34d399; }
 
-@keyframes portrait-speak {
-  0% { transform: scale(1.01) translateY(0); }
-  100% { transform: scale(1.03) translateY(-3px); }
-}
+.avatar-mood-challenging .halo-wave-1 { stroke: url(#halo-challenging-grad-1); }
+.avatar-mood-challenging .halo-wave-2 { stroke: url(#halo-challenging-grad-2); }
+.avatar-mood-challenging .halo-wave-3 { stroke: #fb7185; }
 
-.avatar-fade-bottom {
+/* Pulse Ring */
+.halo-pulse-ring {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(to top, rgba(15, 23, 42, 0.5) 0%, transparent 100%);
+  inset: -10px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
   pointer-events: none;
+  z-index: 0;
+  transition: all 0.4s ease;
+}
+
+/* --- STATE INTERACTIONS --- */
+
+/* 1. IDLE: Peaceful Ambient Breathing */
+.avatar-idle .halo-container {
+  animation: halo-idle-breathe 6s ease-in-out infinite;
+}
+
+/* 2. LISTENING: Expansive Focused Aura */
+.avatar-listening .halo-container {
+  transform: scale(1.06);
+}
+.avatar-listening .halo-atmospheric-glow {
+  opacity: 0.9;
+}
+.avatar-listening .halo-pulse-ring {
+  border-color: rgba(56, 189, 248, 0.4);
+  animation: halo-ripple-pulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+.avatar-listening.avatar-mood-friendly .halo-pulse-ring {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+.avatar-listening.avatar-mood-challenging .halo-pulse-ring {
+  border-color: rgba(244, 63, 94, 0.45);
+}
+
+/* 3. THINKING: Compact Swirling Energy */
+.avatar-thinking .halo-container {
+  transform: scale(0.92);
+}
+.avatar-thinking .halo-wave-1 {
+  animation: halo-rotate-cw 4s linear infinite;
+  stroke-width: 9px;
+}
+.avatar-thinking .halo-wave-2 {
+  animation: halo-rotate-ccw 3s linear infinite;
+  stroke-width: 8px;
+}
+
+/* 4. SPEAKING: Dynamic Expansion, Wave Surges (大声变大) */
+.avatar-speaking .halo-container {
+  transform: scale(1.22);
+  animation: halo-speaking-pulse 0.75s ease-in-out infinite alternate;
+}
+.avatar-speaking .halo-atmospheric-glow {
+  opacity: 1;
+  inset: -32px;
+}
+.avatar-speaking .halo-wave-1 {
+  stroke-width: 15px;
+  animation: halo-rotate-cw 4s linear infinite;
+}
+.avatar-speaking .halo-wave-2 {
+  stroke-width: 12px;
+  animation: halo-rotate-ccw 3.2s linear infinite;
+}
+.avatar-speaking .halo-wave-3 {
+  stroke-width: 6px;
+  animation: halo-rotate-cw 6s linear infinite;
+}
+
+/* KEYFRAMES */
+@keyframes halo-rotate-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes halo-rotate-ccw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes halo-idle-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}
+
+@keyframes halo-speaking-pulse {
+  0% { transform: scale(1.18); }
+  100% { transform: scale(1.26); }
+}
+
+@keyframes halo-ripple-pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  100% { transform: scale(1.18); opacity: 0; }
 }
 
 .stage-persona {
@@ -1166,8 +1239,8 @@ h1 {
   }
   .scenario-panel { padding-right: 20px; }
   .transcript-panel { padding-left: 20px; }
-  .avatar { width: 230px; }
-  .avatar-frame { width: 220px; height: 260px; }
+  .avatar { width: 230px; height: 230px; }
+  .halo-container { width: 220px; height: 220px; }
   .stage-orbit { width: 260px; height: 260px; }
   h1 { font-size: 28px; }
 }
@@ -1217,8 +1290,8 @@ h1 {
     border-top: 1px solid var(--border-hairline);
     padding-top: 18px;
   }
-  .avatar { width: 230px; }
-  .avatar-frame { width: 220px; height: 260px; }
+  .avatar { width: 230px; height: 230px; }
+  .halo-container { width: 220px; height: 220px; }
   .stage-orbit { width: 250px; height: 250px; }
 }
 
