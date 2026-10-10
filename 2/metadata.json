@@ -1,0 +1,135 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K4CBTN1D1P1WW3S57V6RKV",
+  "session_id": "01a12639-78fe-77b3-8677-2e96746601ca",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T14:44:59.08652Z",
+  "branch": "feat/voice-profiles-speech-tracking",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    ".env.example",
+    "README.md",
+    "src/app/api/feedback/route.ts",
+    "src/components/coach.tsx",
+    "src/hooks/use-voice-session.ts",
+    "src/lib/contracts.ts",
+    "src/lib/server/gemini.ts",
+    "src/lib/server/gradium.ts",
+    "src/lib/server/http.ts",
+    "src/lib/server/routes.test.ts",
+    "src/lib/server/validation.ts",
+    "src/lib/streaming-audio.test.ts",
+    "src/lib/streaming-audio.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "9326dd2367db",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1094464,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 53556736,
+    "output_tokens": 110910,
+    "api_call_count": 20,
+    "subagent_tokens": {
+      "input_tokens": 54815,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 171904,
+      "output_tokens": 1343,
+      "api_call_count": 6
+    },
+    "subagent_tokens_complete": true
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T14:44:59.065038Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 10,
+    "human_removed": 86,
+    "total_committed": 0,
+    "total_lines_changed": 96,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 3438,
+      "user_lines_removed": 95,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".env.example": 1,
+        "Graham-SWE-Quick-Reference.md": 36,
+        "README.md": 46,
+        "e2e/coach-report.spec.ts": 35,
+        "e2e/duplex.spec.ts": 224,
+        "e2e/profile.spec.ts": 129,
+        "src/app/api/feedback/route.ts": 2,
+        "src/app/api/voice-token/route.ts": 80,
+        "src/components/answer-review.tsx": 60,
+        "src/components/coach.tsx": 183,
+        "src/components/profile-dashboard.tsx": 95,
+        "src/components/profile.css": 661,
+        "src/components/report-charts.tsx": 95,
+        "src/components/session-report.tsx": 131,
+        "src/components/speech-report.tsx": 46,
+        "src/hooks/use-voice-session.ts": 25,
+        "src/lib/contracts.ts": 34,
+        "src/lib/duplex-session.test.ts": 176,
+        "src/lib/duplex-session.ts": 175,
+        "src/lib/feedback.ts": 54,
+        "src/lib/manual-transcript.test.ts": 120,
+        "src/lib/manual-transcript.ts": 111,
+        "src/lib/profile.test.ts": 155,
+        "src/lib/profile.ts": 139,
+        "src/lib/server/coach-prompt.ts": 26,
+        "src/lib/server/gemini.ts": 55,
+        "src/lib/server/gradium.ts": 9,
+        "src/lib/server/http.ts": 2,
+        "src/lib/server/routes.test.ts": 187,
+        "src/lib/server/validation.ts": 14,
+        "src/lib/server/voice-token.test.ts": 118,
+        "src/lib/speech-metrics.test.ts": 52,
+        "src/lib/speech-metrics.ts": 32,
+        "src/lib/speech-schema.ts": 11,
+        "src/lib/speech-transcript.test.ts": 64,
+        "src/lib/speech-transcript.ts": 31,
+        "src/lib/streaming-audio.test.ts": 17,
+        "src/lib/streaming-audio.ts": 7
+      },
+      "user_removed_per_file": {
+        ".env.example": 1,
+        "README.md": 8,
+        "src/app/api/feedback/route.ts": 2,
+        "src/components/coach.tsx": 36,
+        "src/hooks/use-voice-session.ts": 3,
+        "src/lib/server/gemini.ts": 20,
+        "src/lib/server/gradium.ts": 6,
+        "src/lib/server/http.ts": 2,
+        "src/lib/server/routes.test.ts": 8,
+        "src/lib/server/validation.ts": 4,
+        "src/lib/streaming-audio.ts": 5
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 10,
+      "user_lines_removed": 1,
+      "agent_lines_added": 3428,
+      "agent_lines_removed": 95,
+      "user_added_per_file": {
+        "README.md": 9,
+        "e2e/duplex.spec.ts": 1
+      },
+      "user_removed_per_file": {
+        "README.md": 1
+      }
+    }
+  ]
+}

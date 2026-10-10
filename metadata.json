@@ -3,12 +3,17 @@
   "checkpoint_id": "01M4K4CBTN1D1P1WW3S57V6RKV",
   "strategy": "manual-commit",
   "branch": "feat/voice-profiles-speech-tracking",
-  "checkpoints_count": 3,
+  "checkpoints_count": 5,
   "files_touched": [
+    ".env.example",
     "README.md",
+    "src/app/api/feedback/route.ts",
     "src/components/coach.tsx",
+    "src/hooks/use-voice-session.ts",
     "src/lib/contracts.ts",
     "src/lib/server/gemini.ts",
+    "src/lib/server/gradium.ts",
+    "src/lib/server/http.ts",
     "src/lib/server/routes.test.ts",
     "src/lib/server/validation.ts",
     "src/lib/streaming-audio.test.ts",
@@ -28,20 +33,27 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 384756,
+    "input_tokens": 1479220,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 14882560,
-    "output_tokens": 22063,
-    "api_call_count": 129,
+    "cache_read_tokens": 68439296,
+    "output_tokens": 132973,
+    "api_call_count": 149,
     "subagent_tokens": {
-      "input_tokens": 0,
+      "input_tokens": 54815,
       "cache_creation_tokens": 0,
-      "cache_read_tokens": 0,
-      "output_tokens": 0,
-      "api_call_count": 0
+      "cache_read_tokens": 171904,
+      "output_tokens": 1343,
+      "api_call_count": 6
     },
     "subagent_tokens_complete": true
   }
