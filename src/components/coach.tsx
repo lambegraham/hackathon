@@ -1,21 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronRight, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, MessageCircle, Mic, RotateCcw, Send, Square, Volume2 } from 'lucide-react';
+import { AudioLines, Mic, RotateCcw, Send, Square, Video, Volume2 } from 'lucide-react';
 import { createDuplexSession } from '@/lib/duplex-session';
 import { createStreamingPlayer } from '@/lib/streaming-audio';
 import { VOICES, type VoiceId } from '@/lib/voices';
 import { SCENARIOS } from '@/lib/scenarios';
 import type { ConversationMessage, ConverseReply, FeedbackReport, ScenarioId, SpeechMetadata, Tonality, UserTone } from '@/lib/contracts';
+import { useFlowerCamera } from '@/hooks/use-flower-camera';
 import { useVoiceSession } from '@/hooks/use-voice-session';
-import { Avatar, type AvatarState } from './avatar';
-import { readProfile, saveSession, deleteSession, clearProfile, getComparableSessions, type SavedSession } from '@/lib/profile';
+import type { AvatarState } from './avatar';
+import { COACHING_METRICS, readProfile, saveSession, deleteSession, clearProfile, getComparableSessions, type SavedSession } from '@/lib/profile';
+import { skillLevelLabel } from '@/lib/practice-level';
 import { SessionReport } from './session-report';
 import { ProfileDashboard } from './profile-dashboard';
 import { Sunflower } from './sunflower';
-import { Wardrobe } from './wardrobe';
 import { OUTFITS } from './outfits';
-import { tonalityById, userToneLabel } from '@/lib/tonality';
+import { tonalityById } from '@/lib/tonality';
 import './profile.css';
 
 type Difficulty = 'friendly' | 'neutral' | 'challenging';
@@ -25,14 +26,6 @@ const textMessages = (messages: ConversationMessage[]) => messages.map(({role,co
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
   return typeof body?.error === 'string' ? body.error : 'Something went wrong. Please try again.';
-}
-
-function SoundWave({ active = false, color = 'blue' }: { active?: boolean; color?: 'blue' | 'slate' }) {
-  return (
-    <div className={`sound-wave ${active ? 'active' : ''} sound-wave-${color}`} aria-hidden="true">
-      <span /><span /><span /><span /><span /><span /><span />
-    </div>
-  );
 }
 
 function Intro({ onDone }: { onDone: () => void }) {
@@ -54,8 +47,7 @@ export function Coach() {
   const endIntro = useCallback(() => setIntro(false), []);
   const [tones, setTones] = useState<{ userTone?: UserTone; tonality?: Tonality }>({});
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [stageMaximized, setStageMaximized] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [scenarioId, setScenarioId] = useState<ScenarioId>('interview');
   const [voiceId, setVoiceId] = useState<VoiceId | 'auto'>('auto');
   const [preparingVoice, setPreparingVoice] = useState(false);
@@ -84,6 +76,7 @@ export function Coach() {
   const [setup, setSetup] = useState<Setup | null>(null);
   const [setupFailed, setSetupFailed] = useState(false);
   const recorder = useVoiceSession();
+  const camera = useFlowerCamera();
   const lock = useRef(false);
   const generation = useRef(0);
   const sessionGeneration = useRef(0);
@@ -97,7 +90,6 @@ export function Coach() {
   const scenario = SCENARIOS.find(item => item.id === scenarioId) ?? SCENARIOS[0];
   const voice = VOICES.find(item => item.id === voiceId);
   const tone = tones.tonality && tonalityById(tones.tonality);
-  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
   const outfit = OUTFITS.find(item => item.id === scenarioId)?.id;
   const counterpart = `${voice?.name ?? tone?.voiceName ?? 'Sunflower'} · ${({ interview: 'Interviewer', raise: 'Your manager', relationship: 'Your partner', feedback: 'Your colleague', custom: 'Your counterpart', flatmate: 'Your flatmate', coldcall: 'Your customer', bazaar: 'Your buyer' } as Record<string, string>)[scenarioId]}`;
   const hasUserTurn = messages.some(message => message.role === 'user');
@@ -136,17 +128,27 @@ export function Coach() {
   useEffect(() => { transcriptEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }); }, [messages, busy, partial]);
 
   useEffect(() => {
+    if (profileOpen || reportOpen) camera.stop();
+  }, [profileOpen, reportOpen, camera.stop]);
+
+  useEffect(() => {
+    try { setSavedSessions([...readProfile().sessions].reverse()); }
+    catch { /* The call still starts. Profile reports its own error when opened. */ }
+  }, []);
+
+  useEffect(() => {
     if (!recorder.isRecording) return;
     const timer = setInterval(() => setRecordingSeconds(seconds => Math.min(60, seconds + 1)), 1000);
     return () => clearInterval(timer);
   }, [recorder.isRecording]);
 
   function reset() {
+    camera.stop();
     stopLive();
     recorder.cancelRecording();
     lock.current = false;
     setTones({}); setRecordingSeconds(0);
-    setStarted(false); updateMessages([]); setDraft(''); setReport(null);
+    setStarted(false); updateMessages([]); setDraft(''); setReport(null); setReportOpen(false);
     setError(''); setState('idle'); setBusy(false); setMicStarting(false); setPreparingVoice(false);
     setPracticeQuestion(''); setCurrentSession(null); setSaveError(''); setReportSaved(false); setProfileOpen(false); sessionMeta.current = null;
   }
@@ -345,7 +347,7 @@ export function Coach() {
   }
 
   function openSavedSession(session: SavedSession) {
-    setCurrentSession(session); setReport(session.report); setReportSaved(true); setSaveError(''); setProfileOpen(false);
+    setCurrentSession(session); setReport(session.report); setReportSaved(true); setSaveError(''); setProfileOpen(false); setReportOpen(true);
   }
 
   function practiseAnswer(messageIndex: number) {
@@ -362,292 +364,178 @@ export function Coach() {
   }
 
   const avatarState = state === 'speaking' || state === 'thinking' ? state : recorder.isRecording || liveActive ? 'listening' : state;
-  const statusText = liveStarting || micStarting ? 'Connecting your microphone' : preparingVoice ? 'Preparing voice' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : recorder.isRecording ? 'Listening to you' : liveActive ? 'Listening · you can interrupt anytime' : started ? 'Your turn. Take your time.' : 'Ready when you are';
-
-  const headline = report ? 'Here’s what you can take with you.'
-    : feeling && tone ? `I’m sensing you feel ${feeling}, so I’m adapting ${/^[aeiou]/i.test(tone.label) ? 'an' : 'a'} ${tone.label.toLowerCase()} tone. ${voice?.name ?? tone.voiceName} is here to train you.`
-    : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.'
-    : 'Hi, I’m your practice sunflower. Dress me for the talk you want to train.';
-
-  const gridClass = [
-    'studio-grid',
-    sidebarCollapsed && 'sidebar-collapsed',
-    stageMaximized && 'stage-maximized'
-  ].filter(Boolean).join(' ');
+  const statusText = liveStarting || micStarting ? 'Connecting your microphone' : preparingVoice ? 'Preparing voice' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : recorder.isRecording ? 'Listening to you' : liveActive ? 'Listening. You can interrupt anytime.' : started ? 'Your turn. Take your time.' : 'Ready when you are';
+  const assistantLine = [...messages].reverse().find(message => message.role === 'assistant')?.content;
+  const yourLine = [...messages].reverse().find(message => message.role === 'user')?.content;
+  const advice = report ?? savedSessions[0]?.report;
+  const clock = `${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`;
+  const showLive = recorder.isRecording || liveActive;
+  const alternate = profileOpen || (reportOpen && currentSession);
 
   return (
-    <main className="app-shell">
+    <main className={alternate ? 'app-shell' : 'call-shell'}>
       {intro && <Intro onDone={endIntro} />}
-      {/* TOPBAR */}
-      <header className="topbar">
-        <a href="/" className="brand" aria-label="Rehearsal home">
-          <span className="brand-mark"><MessageCircle size={18} /></span>
-          rehearsal<span className="brand-dot">.</span>
-        </a>
-        <div className="topbar-actions">
-          <button className="profile-button" onClick={openProfile} disabled={started && !report}>My profile</button>
+      {profileOpen ? <ProfileDashboard sessions={savedSessions} error={profileError} onOpen={openSavedSession} onDelete={id => changeHistory(id)} onClear={() => changeHistory()} onBack={() => setProfileOpen(false)} /> : reportOpen && currentSession ? (
+        <div className="call-report">
+          <button className="secondary-button" onClick={() => setReportOpen(false)}>Back to the call</button>
+          <SessionReport session={currentSession} sessions={savedSessions} saveError={saveError} saved={reportSaved} onRetry={() => persistSession(currentSession)} onPractise={reset} onPractiseAnswer={practiseAnswer} />
         </div>
-      </header>
-
-      {/* PAGE HEADING */}
-      {!profileOpen && <section className="page-heading">
-        <div>
-          <div className="eyebrow">{scenario.title.toUpperCase()}</div>
-          <h1 aria-live="polite">{headline}</h1>
-        </div>
-        <div className="session-chip">
-          <span />
-          {report ? 'Session complete' : started ? 'In progress' : 'Ready'}
-        </div>
-      </section>}
-
-      {/* SETUP ALERTS */}
-      {(setupFailed || (setup && !setup.gemini)) && (
-        <div className="setup-notice" role="status">
-          <strong>{setupFailed ? 'Could not check service availability.' : 'Connect Gemini to start practising.'}</strong>{' '}
-          {setupFailed ? 'Refresh the page to try again.' : 'Add GEMINI_API_KEY to the server environment, then restart the app.'}
-        </div>
-      )}
-      {setup?.gemini && !setup.gradium && (
-        <div className="setup-notice" role="status">
-          Voice is unavailable until GRADIUM_API_KEY is configured. You can practise by typing.
-        </div>
-      )}
-
-      {/* REPORT VIEW OR ACTIVE STUDIO */}
-      {profileOpen ? <ProfileDashboard sessions={savedSessions} error={profileError} onOpen={openSavedSession} onDelete={id => changeHistory(id)} onClear={() => changeHistory()} onBack={() => setProfileOpen(false)} /> : report && currentSession ? <SessionReport session={currentSession} sessions={savedSessions} saveError={saveError} saved={reportSaved} onRetry={() => persistSession(currentSession)} onPractise={reset} onPractiseAnswer={practiseAnswer} /> : (
-        <div className={gridClass}>
-          {/* LEFT: SCENARIO PANEL */}
-          <aside className="scenario-panel">
-            <div className="panel-heading">
-              <span>Scenarios</span>
-            </div>
-            {!started && outfit && <Wardrobe value={outfit} onChange={id => { setScenarioId(id); setPracticeQuestion(''); }} />}
-            {!started && <label className="custom-label">Conversation
-              <select aria-label="Conversation" value={scenarioId} onChange={event => { setScenarioId(event.target.value as ScenarioId); setPracticeQuestion(''); }}>
-                {SCENARIOS.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-              </select>
-            </label>}
-            {scenarioId === 'custom' && <label className="custom-label">What would you like to practise?
-              <textarea maxLength={1500} disabled={started} value={customScenario} onChange={event => { setCustomScenario(event.target.value); setPracticeQuestion(''); }} placeholder="Who are you speaking to, and what do you want to say?" />
-            </label>}
-            {started && <p>{scenario.title}</p>}
-
-            <div className="difficulty">
-              {scenarioId === 'interview' && <><label htmlFor="target-role">Target role</label><input id="target-role" maxLength={200} disabled={started} value={targetRole} onChange={event => setTargetRole(event.target.value)} placeholder="e.g. Backend Engineer" /></>}
-              <label htmlFor="difficulty">Their approach</label>
-              <select
-                id="difficulty"
-                value={difficulty}
-                disabled={started}
-                onChange={event => setDifficulty(event.target.value as Difficulty)}
-              >
-                <option value="friendly">Friendly</option>
-                <option value="neutral">Neutral</option>
-                <option value="challenging">Challenging</option>
-              </select>
-
-              <label htmlFor="voice">Their voice</label>
-              <select
-                id="voice"
-                value={voiceId}
-                disabled={started}
-                onChange={event => setVoiceId(event.target.value as VoiceId | 'auto')}
-              >
-                <option value="auto">Automatic tone</option>
-                {VOICES.map(item => (
-                  <option key={item.id} value={item.id}>{item.label}</option>
+      ) : (
+        <>
+          <aside className="call-rail">
+            <a href="/" className="call-brand">AnyResets</a>
+            <div className="call-rail-scroll">
+              <p className="call-rail-label" id="conversation-label">Conversation</p>
+              <div className="call-scenarios" role="radiogroup" aria-labelledby="conversation-label">
+                {SCENARIOS.map(item => (
+                  <button
+                    key={item.id}
+                    role="radio"
+                    aria-checked={item.id === scenarioId}
+                    className="call-scenario"
+                    disabled={started}
+                    onClick={() => { setScenarioId(item.id); setPracticeQuestion(''); }}
+                  >
+                    {item.title}
+                  </button>
                 ))}
-              </select>
+              </div>
+              {scenarioId === 'custom' && (
+                <label className="call-field">What would you like to practise?
+                  <textarea maxLength={1500} disabled={started} value={customScenario} onChange={event => { setCustomScenario(event.target.value); setPracticeQuestion(''); }} placeholder="Who are you speaking to, and what do you want to say?" />
+                </label>
+              )}
+              {scenarioId === 'interview' && (
+                <label className="call-field" htmlFor="target-role">Target role
+                  <input id="target-role" maxLength={200} disabled={started} value={targetRole} onChange={event => setTargetRole(event.target.value)} placeholder="e.g. Backend Engineer" />
+                </label>
+              )}
+              <label className="call-field" htmlFor="difficulty">Their approach
+                <select id="difficulty" value={difficulty} disabled={started} onChange={event => setDifficulty(event.target.value as Difficulty)}>
+                  <option value="friendly">Friendly</option>
+                  <option value="neutral">Neutral</option>
+                  <option value="challenging">Challenging</option>
+                </select>
+              </label>
+              <label className="call-field" htmlFor="voice">Their voice
+                <select id="voice" value={voiceId} disabled={started} onChange={event => setVoiceId(event.target.value as VoiceId | 'auto')}>
+                  <option value="auto">Automatic tone</option>
+                  {VOICES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </select>
+              </label>
             </div>
+            <button className="call-profile" onClick={openProfile} disabled={started && !report}>My profile</button>
           </aside>
 
-          {/* CENTER: REHEARSAL STAGE */}
-          <section className="stage-panel">
-            <div className="stage-top">
-              <button
-                className="stage-tool-btn"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                title={sidebarCollapsed ? "Show scenarios" : "Hide scenarios"}
-              >
-                {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
-                <span>{sidebarCollapsed ? "Scenarios" : "Focus"}</span>
-              </button>
-
-              <span className="difficulty-badge">{difficulty}</span>
-
-              <button
-                className="stage-tool-btn stage-tool-icon"
-                onClick={() => setStageMaximized(!stageMaximized)}
-                aria-label={stageMaximized ? "Restore view" : "Maximize stage"}
-                title={stageMaximized ? "Exit full view" : "Full stage"}
-              >
-                {stageMaximized ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-              </button>
-            </div>
-
-            <div className="avatar-stage">
-              <div className="stage-orbit" />
-              <Avatar state={avatarState} gender={voice?.gender} scenario={scenarioId} difficulty={difficulty} />
-              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} />
-
-              <div className="stage-persona">
-                <span className="counterpart-name">{counterpart}</span>
-                {avatarState === 'speaking' && (
-                  <SoundWave active={true} color="blue" />
+          <section className="call-center">
+            {(setupFailed || (setup && !setup.gemini)) && (
+              <p className="call-notice" role="status">{setupFailed ? 'Could not check service availability. Refresh the page to try again.' : 'Connect Gemini to start practising. Add GEMINI_API_KEY, then restart the app.'}</p>
+            )}
+            {setup?.gemini && !setup.gradium && (
+              <p className="call-notice" role="status">Voice is unavailable until GRADIUM_API_KEY is configured. You can practise by typing.</p>
+            )}
+            <header className="call-top">
+              <div>
+                <h1>{scenario.title}</h1>
+                <p className="call-status" aria-live="polite">{statusText}</p>
+              </div>
+              <div className="call-top-actions">
+                {showLive && (
+                  <span className="call-rec" role="status">
+                    <span />
+                    {recorder.isRecording ? `Recording ${clock}` : 'Live'}
+                  </span>
+                )}
+                {started && !report && (
+                  <button className="call-end" disabled={busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End session</button>
+                )}
+                {started && (
+                  <button className="call-over" onClick={reset} aria-label="Start over"><RotateCcw size={15} /></button>
                 )}
               </div>
+            </header>
 
-              {statusText && (
-                <div className={`state-indicator state-${avatarState}`}>
-                  <span />
-                  {statusText}
-                </div>
-              )}
-            </div>
-
-            <div className="stage-bottom">
-              {!started ? (
-                <div className="stage-action-center">
-                  <button
-                    className="primary start-button"
-                    disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())}
-                    onClick={begin}
-                  >
-                    Start practising <ArrowRight size={17} />
-                  </button>
-                </div>
-              ) : (
-                <div className="stage-controls-area">
-                  {/* Clean Horizontal Status Row in Whitespace (No Overlap, No Red Numbers) */}
-                  {recorder.isRecording && (
-                    <div className="recording-status-row" aria-live="polite">
-                      <span className="rec-pulse-dot" />
-                      <span className="rec-time-text">
-                        {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:
-                        {String(recordingSeconds % 60).padStart(2, '0')} / 01:00
-                      </span>
-                      <SoundWave active={true} color="slate" />
-                    </div>
-                  )}
-
-                  <div className="record-container">
-                    <button className={`record-button ${liveActive ? 'recording' : ''}`} disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
-                      {liveActive || liveStarting ? <Square size={18} /> : <Mic size={20} />}
-                      <span>{liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'}</span>
-                    </button>
-                    <p className="record-help">{liveActive ? 'Speak naturally. Pause to send, or interrupt your counterpart.' : 'Hands-free conversation, with automatic turn taking.'}</p>
-                  </div>
-                  <div className="record-container">
-                    <button
-                      className={`record-button ${recorder.isRecording ? 'recording' : ''}`}
-                      disabled={busy || liveActive || liveStarting || !setup?.gradium}
-                      onClick={toggleRecording}
-                    >
-                      {recorder.isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={20} />}
-                      <span>{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span>
-                    </button>
-                  </div>
-
-                  <div className="session-actions">
-                    <button
-                      disabled={busy || !hasUserTurn || recorder.isRecording}
-                      onClick={finish}
-                    >
-                      End session & get feedback <ChevronRight size={14} />
-                    </button>
-                    <button className="reset-button" onClick={reset} aria-label="Reset session">
-                      <RotateCcw size={15} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* RIGHT: TRANSCRIPT PANEL */}
-          <section className="transcript-panel">
-            <div className="panel-heading">
-              <div className="transcript-title">
-                <Volume2 size={15} />
-                <span>Conversation</span>
+            <div className="call-frame">
+              <div className="call-room" aria-hidden="true">
+                <div className="call-window" />
+                <div className="call-lamp" />
+                <div className="call-desk" />
               </div>
-              <span className="turn-count-badge">
-                {messages.length > 0 ? `${messages.filter(m => m.role === 'user').length} turns` : 'Ready'}
-              </span>
+              <Sunflower frame="chest" state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} />
+              <video ref={camera.videoRef} className={`flower-self-view${camera.on ? ' on' : ''}`} playsInline muted aria-hidden={!camera.on} aria-label={camera.on ? 'Your camera. Stop camera.' : undefined} onClick={() => { if (camera.on) camera.stop(); }} />
+              {assistantLine && (
+                <div className="call-bubble">
+                  <Volume2 size={15} aria-hidden="true" />
+                  <p>{assistantLine}</p>
+                </div>
+              )}
+              {busy && state !== 'speaking' && !assistantLine && (
+                <p className="call-wait">{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</p>
+              )}
+              {partial && <p className="call-partial" aria-label="Live transcript">{partial}</p>}
+              {camera.note ? <p className="call-note" role="status">{camera.note}</p> : null}
+              <div className="call-dock">
+                <div className="call-orb-wrap">
+                  <button className={`call-orb${recorder.isRecording ? ' call-orb-hot' : ''}`} aria-label={recorder.isRecording ? 'Finish and send' : 'Record your answer'} disabled={!started || busy || liveActive || liveStarting || !setup?.gradium} onClick={toggleRecording}>
+                    {recorder.isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={20} />}
+                  </button>
+                  <span>{recorder.isRecording ? 'Send' : 'Record'}</span>
+                </div>
+                <div className="call-orb-wrap">
+                  {!started ? (
+                    <button className="call-orb call-orb-start" aria-label="Start practising" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>Start</button>
+                  ) : (
+                    <button className={`call-orb${liveActive || liveStarting ? ' call-orb-hot' : ''}`} aria-label={liveStarting ? 'Cancel voice connection' : liveActive ? 'Stop live voice' : 'Start live voice'} disabled={!setup?.gradium || recorder.isRecording || (!liveActive && !liveStarting && busy)} onClick={() => liveActive || liveStarting ? stopLive() : void startLive()}>
+                      {liveActive || liveStarting ? <Square size={18} /> : <AudioLines size={20} />}
+                    </button>
+                  )}
+                  <span>{!started ? 'Start' : liveActive || liveStarting ? 'Stop' : 'Live'}</span>
+                </div>
+                <div className="call-orb-wrap">
+                  <button className={`call-orb${camera.on ? ' call-orb-on' : ''}`} aria-pressed={camera.on} aria-label={camera.on ? 'Stop camera' : 'Use camera'} onClick={() => camera.on ? camera.stop() : void camera.start()}>
+                    <Video size={20} />
+                  </button>
+                  <span>Camera</span>
+                </div>
+              </div>
             </div>
 
-            <div className="transcript" aria-live="polite" aria-relevant="additions">
-              {messages.length === 0 ? (
-                <div className="empty-transcript">
-                  <span><MessageCircle size={24} /></span>
-                  <h3>The first words are yours.</h3>
-                </div>
-              ) : (
-                messages.map((message, index) => {
-                  const isUser = message.role === 'user';
-                  const userTurnNumber = messages.slice(0, index + 1).filter(m => m.role === 'user').length;
-
-                  return (
-                    <div key={index} className="message-wrapper">
-                      {isUser && (
-                        <div className="turn-divider">
-                          <span className="turn-divider-label">Round {userTurnNumber}</span>
-                        </div>
-                      )}
-                      <div className={`message message-${message.role}`}>
-                        <div className="message-header">
-                          <span className="message-author">
-                            {isUser ? 'You' : counterpart.split(' · ')[0]}
-                          </span>
-                        </div>
-                        <p>{message.content}</p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-
-              {busy && state !== 'speaking' && (
-                <div className="thinking-message">
-                  <span /><span /><span />
-                  <small>{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</small>
-                </div>
-              )}
-              {partial && <div className="message message-user live-transcript" aria-label="Live transcript" aria-live="off"><span className="message-author">You · {recorder.isRecording || liveActive ? 'speaking' : 'transcribing'}</span><p>{partial}<span className="transcript-caret" aria-hidden="true" /></p></div>}
+            {yourLine && <p className="call-said">{yourLine}</p>}
+            {recorder.liveTranscriptError && recorder.isRecording && <p className="call-notice" role="status">{recorder.liveTranscriptError}</p>}
+            {(error || recorder.error) && <p className="call-alert" role="alert">{error || recorder.error}</p>}
+            <form className="call-composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
+              <label className="sr-only" htmlFor="answer">Your answer</label>
+              <textarea id="answer" placeholder={started ? 'Or type your answer…' : 'Start a session to join'} value={draft} onChange={event => setDraft(event.target.value)} disabled={!started || busy || recorder.isRecording} maxLength={4000} rows={1} />
+              <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}><Send size={16} /></button>
+            </form>
+            <div className="sr-only" aria-live="polite">
+              {messages.map((message, index) => <p key={index}>{message.role === 'user' ? 'You' : counterpart.split(' · ')[0]}: {message.content}</p>)}
               <div ref={transcriptEnd} />
             </div>
-
-            {recorder.liveTranscriptError && recorder.isRecording && <p className="record-help" role="status">{recorder.liveTranscriptError}</p>}
-            {(error || recorder.error) && (
-              <p className="error-message" role="alert">{error || recorder.error}</p>
-            )}
-
-            <form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
-              <label className="sr-only" htmlFor="answer">Your answer</label>
-              <textarea
-                id="answer"
-                placeholder={started ? 'Or type your answer…' : 'Start a session to join'}
-                value={draft}
-                onChange={event => setDraft(event.target.value)}
-                disabled={!started || busy || recorder.isRecording}
-                maxLength={4000}
-                rows={2}
-              />
-              <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}>
-                <Send size={16} />
-              </button>
-            </form>
           </section>
-        </div>
-      )}
 
-      {/* FOOTER */}
-      <footer className="footer">
-        <span>Conversation Coach</span>
-        <span>Voice by Gradium <span className="footer-divider">/</span> Gemini</span>
-      </footer>
+          <aside className="call-advice">
+            {advice ? (
+              <>
+                {advice.assessment ? (
+                  <ul className="call-levels">
+                    {COACHING_METRICS.map(({ key, label }) => (
+                      <li key={key}><span>{label}</span><span>{skillLevelLabel(advice.assessment![key].score)}</span></li>
+                    ))}
+                  </ul>
+                ) : null}
+                <ul className="call-tries">
+                  {advice.improvements.map(item => <li key={item}>{item}</li>)}
+                </ul>
+                {report && currentSession && <button className="call-advice-more" onClick={() => setReportOpen(true)}>Full report</button>}
+                {saveError && <p className="call-alert" role="alert">{saveError}</p>}
+              </>
+            ) : (
+              <p>Advice shows after this practice.</p>
+            )}
+          </aside>
+        </>
+      )}
     </main>
   );
 }
