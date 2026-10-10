@@ -183,6 +183,24 @@ describe('coach API', () => {
         fetchMock.mockResolvedValue(new Response('{"type":"error","message":"secret"}\n'));
         expect((await transcribe(req())).status).toBe(502);
     });
+    it('sends the scenario keyword boost id to Gradium only when configured', async () => {
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('{"type":"text","text":"hello"}\n'));
+        const req = (scenario?: string) => new Request('http://localhost/api/transcribe', {
+            method: 'POST', headers: { 'content-type': 'audio/wav', ...(scenario ? { 'x-scenario': scenario } : {}) }, body: wav()
+        });
+        const config = (call: number) => JSON.parse(new URL(String(fetchMock.mock.calls[call][0])).searchParams.get('json_config')!);
+        vi.stubEnv('KEYWORD_BOOST_INTERVIEW', 'boost-interview');
+        vi.stubEnv('KEYWORD_BOOST_RELATIONSHIP', '');
+        await transcribe(req('interview'));
+        expect(config(0)).toEqual({ language: 'en', keyword_boost_id: 'boost-interview' });
+        await transcribe(req('relationship'));
+        expect(config(1)).toEqual({ language: 'en' });
+        await transcribe(req('raise'));
+        expect(config(2)).toEqual({ language: 'en' });
+        await transcribe(req());
+        expect(config(3)).toEqual({ language: 'en' });
+        vi.unstubAllEnvs();
+    });
     it('rejects malformed and long audio', async () => {
         for (const body of [new Uint8Array(45), wav(61)]) {
             const r = await transcribe(new Request('http://localhost/api/transcribe', {

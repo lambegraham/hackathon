@@ -77,9 +77,20 @@ async function boundedResponse(response: Response, max: number) {
     }
     return bytes;
 }
-export async function transcribe(bytes: Uint8Array) {
+// Studio keyword-boost sets, one per scenario. IDs live in .env.local, never in git.
+const KEYWORD_BOOST_ENV: Record<string, string> = {
+    interview: 'KEYWORD_BOOST_INTERVIEW',
+    relationship: 'KEYWORD_BOOST_RELATIONSHIP',
+};
+function keywordBoostId(scenario?: string) {
+    const name = scenario ? KEYWORD_BOOST_ENV[scenario] : undefined;
+    return name ? process.env[name]?.trim() || undefined : undefined;
+}
+export async function transcribe(bytes: Uint8Array, scenario?: string) {
     validateWav(bytes);
-    return gradium(`asr?${new URLSearchParams({ json_config: JSON.stringify({ language: 'en' }) })}`, {
+    const boostId = keywordBoostId(scenario);
+    const config = { language: 'en', ...(boostId ? { keyword_boost_id: boostId } : {}) };
+    return gradium(`asr?${new URLSearchParams({ json_config: JSON.stringify(config) })}`, {
         method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: bytes as BodyInit
     }, async (response) => {
         const lines = new TextDecoder().decode(await boundedResponse(response, 1048576)).split('\n').filter(line => line.trim());

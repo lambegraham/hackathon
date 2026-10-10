@@ -130,7 +130,7 @@ export function Coach() {
       if (source === 'voice') {
         setState('thinking');
         const blob = await recorder.stopRecording();
-        const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: blob, signal: abort.signal });
+        const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav', 'X-Scenario': scenarioId }, body: blob, signal: abort.signal });
         if (!response.ok) throw new Error(await responseError(response));
         text = (await response.json()).text;
       }
