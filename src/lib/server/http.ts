@@ -51,10 +51,10 @@ export async function readLimited(request: Request, max: number) {
     }
     return bytes;
 }
-export async function readJson<T>(request: Request, schema: z.ZodType<T>) {
+export async function readJson<T>(request: Request, schema: z.ZodType<T>, maxBytes = 65536) {
     if (!request.headers.get('content-type')?.includes('application/json'))
         throw new ApiError(415, 'Expected application/json.');
-    const bytes = await readLimited(request, 65536);
+    const bytes = await readLimited(request, maxBytes);
     try {
         return schema.parse(JSON.parse(new TextDecoder().decode(bytes)));
     }

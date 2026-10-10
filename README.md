@@ -8,11 +8,11 @@ Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b
 
 Use Node.js 22.21 or newer. Install with `npm ci`, copy `.env.example` to `.env.local`, then set `GEMINI_API_KEY` and `GRADIUM_API_KEY`. Run `npm run dev` and open http://127.0.0.1:3000.
 
-Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. Conversational turns default to `gemini-3.5-flash-lite`; feedback defaults to `gemini-3.8-flash`. Set `GEMINI_CONVERSATION_MODEL` and `GEMINI_FEEDBACK_MODEL` to override them independently. A legacy `GEMINI_MODEL` setting remains the fallback for either role when its specific setting is absent. The studio offers Marshall (male, default) and Lainey (female), with matching characters. `GRADIUM_VOICE_ID` remains the fallback for API calls that omit a voice choice. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
+Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. Conversational turns default to `gemini-3.5-flash-lite`; feedback defaults to `gemini-3.1-pro-preview`. Set `GEMINI_CONVERSATION_MODEL` and `GEMINI_FEEDBACK_MODEL` to override them independently. A legacy `GEMINI_MODEL` setting remains the fallback for either role when its specific setting is absent. The studio offers Marshall (male, default) and Lainey (female), with matching characters. `GRADIUM_VOICE_ID` remains the fallback for API calls that omit a voice choice. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
 
 ## Gradium hackathon setup
 
-The [hackathon guide](https://mesquite-pyrite-bca.notion.site/redeem-coupon) funds the voice integration already wired into this app: recorded answer → Gradium Speech-to-Text → Gemini reply → Gradium Text-to-Speech → spoken counterpart. The coupon is redeemed in your Gradium account; it is not an application API or a source of conversation facts.
+The [hackathon guide](https://mesquite-pyrite-bca.notion.site/redeem-coupon) funds the voice integration already wired into this app: continuous microphone → Gradium streaming Speech-to-Text → Gemini reply → Gradium streamed Text-to-Speech → spoken counterpart. The coupon is redeemed in your Gradium account; it is not an application API or a source of conversation facts.
 
 1. Get the event's private redemption link from the organizer and redeem it in [Gradium Studio](https://studio.gradium.ai/), using the same email as your hackathon registration.
 2. Confirm the credited balance in [Billing](https://studio.gradium.ai/platform/billing), then create a key in [API Keys](https://studio.gradium.ai/platform/api-keys).
@@ -21,24 +21,34 @@ The [hackathon guide](https://mesquite-pyrite-bca.notion.site/redeem-coupon) fun
 
 For a distinctive counterpart, use [Voice Design](https://studio.gradium.ai/voices/design) to create and save a synthetic voice. Add its permanent `voice_id` to the server-approved choices in `src/lib/voices.ts` to expose it in the studio; `GRADIUM_VOICE_ID` sets the fallback for API calls without a selection. Example description: “A calm English-speaking hiring manager, clear diction, measured pace, warm but professional.”
 
-For the submission, identify the features as Gradium REST STT and TTS, include the selected voice ID, and explain the flow above. TTS currently omits `model_name`, so Gradium chooses its production default; see the [TTS guide](https://docs.gradium.ai/guides/text-to-speech-rest). Coupon redemption, available balance and actual provider access must be checked in your account. The voice check confirms the API path; also try a microphone turn to check recording and playback.
+For the submission, identify the features as Gradium WebSocket STT and streamed REST TTS, include the selected voice ID, and explain the flow above. TTS currently omits `model_name`, so Gradium chooses its production default; see the [TTS guide](https://docs.gradium.ai/guides/text-to-speech-rest). Coupon redemption, available balance and actual provider access must be checked in your account. The voice check confirms the API path; also try a microphone turn to check recording and playback.
 
 ## Demo
 
 Select **Ask for a raise**, set the difficulty and voice, and start practice. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
 
-The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The avatar has idle, listening, thinking and speaking states.
+Click **Start live voice** for hands-free conversation. The microphone stays open while the counterpart speaks; starting to speak interrupts pending responses and scheduled playback. Gradium semantic turn detection plus a short quiet period sends each answer automatically. A one-second quiet fallback handles missing turn signals. Acknowledged flush boundaries retain late transcript words. **Stop live voice**, reset, and finishing close the microphone and connection. The existing **Record your answer** button remains a push-to-talk fallback: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The avatar has idle, listening, thinking and speaking states.
 
-Spoken replies stream mono 48 kHz PCM16 into Web Audio playback as chunks arrive, rather than buffering a full WAV before speaking. The transcript still appears as soon as Gemini finishes. "Preparing voice" distinguishes synthesis from Gemini thinking. This reduces the audio download wait; transcription and Gemini generation still precede synthesis.
+Spoken replies stream mono 48 kHz PCM16 into Web Audio playback as chunks arrive, rather than buffering a full WAV before speaking. The transcript still appears as soon as Gemini finishes. "Preparing voice" distinguishes synthesis from Gemini thinking. This reduces the audio download wait; the completed user turn and Gemini generation still precede synthesis. Duplex capture runs simultaneously with playback, but Gemini text generation and speech synthesis do not yet overlap.
 
 Conversational calls use minimal thinking on `gemini-3.5-flash-lite` and low thinking on `gemini-3.8-flash`. Other model overrides retain their own default thinking settings to avoid unsupported parameters. Final feedback retains the model's default reasoning. This favors quick in-character responses over deep reasoning during each turn.
+
+Live sessions use mono PCM in 80 ms frames, Gradium’s stable `default` STT model, and the supported minimum seven-frame transcription delay. The browser obtains a fresh single-use token through the server; the permanent key stays private. Token issuance is restricted to localhost for this account-free demo. Authenticate token issuance before public deployment. Capture requests echo cancellation, noise suppression and automatic gain control; use headphones for the first microphone test. Sessions stop after ten minutes, and individual turns are limited to 4,000 characters.
+
+## Reports and local profile
+
+End a conversation to receive a saved report with strengths, improvements, a suggested rewrite, and four coaching scores: clarity, structure, specificity and relevance. Scores range from 1 (needs substantial work) to 5 (strong). Each score includes an exact quote from your answer and a practical next step; the server rejects invented evidence. These are AI coaching estimates based on words, not measurements of personality or vocal delivery. The richer feedback response has an 8,192-token output budget; conversational settings are unchanged.
+
+Reports compare against your latest previous session for the same scenario and difficulty. Custom scenarios also match their description, and interview comparisons match the optional target role. The coach receives the latest matching transcript, its prior assessment and next practice goal. Charts show current/previous scores, four skill trends and expandable answer-level scores; a first session has no fabricated baseline. New reports include source-validated evidence from both conversations, a priority, a drill and a measurable next goal. Practise this answer prepares a custom rehearsal for that question and pre-fills the original answer. Old reports remain readable, but their scoring rubric may differ. **My profile** opens saved history and reports after reload. You can delete individual reports or clear the local history.
+
+The local profile stores completion dates, scenario, difficulty, optional target role, duration, transcript and report under `rehearsal.profile.v1` in localStorage. It keeps the newest 50 sessions, up to 4 MiB. Browser storage failures show a retry action; corrupt data is preserved until you explicitly clear it. Clearing browser data removes the profile, and separate browsers or devices do not share it. No audio or provider credentials are stored in the profile.
 
 ## Architecture and ownership
 
 | Area | Files | Team responsibility |
 | --- | --- | --- |
 | Rehearsal UI | `src/components/`, `src/app/` | Scenarios, avatar, transcript, feedback |
-| Microphone | `src/hooks/`, `src/lib/audio.ts` | WAV capture and resource cleanup |
+| Microphone | `src/hooks/`, `src/lib/audio.ts`, `src/lib/duplex-session.ts` | Continuous PCM capture, turn detection, WAV fallback and cleanup |
 | Conversation | `src/lib/server/`, `src/app/api/converse/` | Gemini prompts and full history |
 | Voice services | `src/app/api/transcribe/`, `src/app/api/speak/` | Gradium STT/TTS |
 | Reliability | `src/**/*.test.ts`, `e2e/` | Contract, failure and browser checks |
@@ -50,16 +60,17 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | Route | Request | Response |
 | --- | --- | --- |
 | `GET /api/status` | None | Provider key presence booleans; never keys |
-| `POST /api/transcribe` | Raw `audio/wav` | `{ text }` |
+| `POST /api/voice-token` | None, localhost only | Single-use short-lived `{ token, expires_at }` for browser STT WebSocket |
+| `POST /api/transcribe` | Raw `audio/wav` | `{ text, speech }`, where `speech` contains original Gradium segments and any available segment timing |
 | `POST /api/converse` | Session and message history | `{ reply }` |
 | `POST /api/speak` | `{ text, voiceId?, format? }` | WAV by default; `format: "pcm"` streams `audio/pcm` with `X-Audio-Sample-Rate: 48000` |
-| `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse }` |
+| `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse, assessment }`; each assessment dimension contains `{ score, evidence, action }` |
 
 Session input: `scenarioId`, `difficulty`, optional `customScenario`, and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
 
 Speech voice IDs are `marshall` and `lainey`, mapped to verified public Gradium catalogue IDs on the server. Speech format accepts `wav` or `pcm`. PCM streaming failures after response headers close the stream; the client retains the transcript and shows a speech error. Reset cancels the request and queued playback.
 
-Transcripts live in browser memory only. The app does not save recordings, accounts or sessions. Feedback concerns the words spoken; it does not diagnose personality or mood. Provider retention policies still apply.
+Completed sessions save their transcript and feedback in a browser-local profile. The app does not save recordings or create accounts. Feedback concerns the words spoken; it does not diagnose personality or mood. Provider retention policies still apply.
 
 Requests are bounded to 64 KiB JSON, 40 messages, 4,000 characters per message and 24,000 characters total. Custom scenarios allow 1,500 characters; speech synthesis accepts 2,000. Recordings allow 60 seconds and 12 MiB, with provider calls limited to 25 seconds. The process-local limit is 60 POST requests per minute across all users; it is a demo safeguard, not a distributed production limiter. Deploying multiple replicas or opening the app publicly needs an appropriate access and usage policy.
 
@@ -92,12 +103,47 @@ A three-scenario Gemini benchmark used the same conversation instructions and 40
 
 After enabling role-specific models in the local environment, a synthetic interview turn through `/api/converse` returned a complete reply in 1.01 seconds. Verification for the voice/model changes: 64 unit/API tests and 11 browser tests pass; lint and typecheck pass. Scope review found no blockers. Webpack production compilation is used here because Turbopack has a local worker port-binding issue; no compiler configuration was changed.
 
+## Duplex verification — 10 October 2026
+
+Continuous capture, acknowledged turn boundaries, interruption during response generation and playback, two-turn history, permission cancellation, and stop/reset/feedback cleanup have focused coverage. All 108 unit/API tests and 16 browser tests pass. Instrumented service/audio coverage is 94.73% statements and 87.92% branches; lint, typecheck and the Webpack production build pass. A real short-lived token connected to Gradium STT at 24 kHz with seven-frame delay and acknowledged flushes. A synthetic spoken sentence streamed through that connection was correctly transcribed. Physical microphone echo cancellation and room acoustics still need a headset/speaker rehearsal.
+
+## Report/profile verification — 10 October 2026
+
+All 130 unit/API tests and 21 browser tests pass. Instrumented service/audio/profile coverage is 95.27% statements and 88.34% branches; lint and typecheck pass. Browser tests cover two-session improvement/decline comparisons, persistence after reload, quota retry without duplication, corrupt-profile recovery, cancelled feedback preventing stale saves, and mobile graph layout. A real synthetic browser conversation through Gemini and Gradium generated a report with all four scores and exact user quotes, saved it locally, and reopened it after reload. Feedback sends the completed transcript as labelled dialogue data inside a user request, because Gemini rejects requests ending with a model turn; conversation generation still uses role-separated history.
+
 ## Provider references
 
 - [Google GenAI SDK / Gemini](https://ai.google.dev/gemini-api/docs/generate-content)
 - [Gemini thinking levels](https://ai.google.dev/gemini-api/docs/thinking)
 - [Gemini 3.5 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
+- [Gradium browser WebSockets](https://docs.gradium.ai/guides/browser-websockets): single-use tokens and continuous STT
 - [Gradium STT REST](https://docs.gradium.ai/guides/speech-to-text-rest): raw WAV upload, NDJSON text segments
 - [Gradium TTS REST](https://docs.gradium.ai/guides/text-to-speech-rest): WAV output with `only_audio: true`
 
 Dependencies: Next.js, React, TypeScript, Tailwind CSS, Lucide icons, Google GenAI, Zod. Validation: Vitest, Playwright, ESLint. The avatar is an original SVG implemented in the app.
+
+
+## Interview coach verification — 10 October 2026
+
+The dedicated interview-coach-v1 prompt evaluates each original user answer, uses contextual STAR and ownership/outcome evidence, and compares only a matching prior session. Its indexed evidence bank supplies verbatim snippets; the server still rejects altered quotes, invented indexes, duplicate reviews and invalid baseline IDs. A structural provider schema avoids Gemini rejection from tuple/constraint-heavy JSON schemas while full runtime validation remains strict. Reports use Pro Preview with medium thinking; live replies retain Flash-Lite.
+
+TDD evidence: new route/quote-bank tests failed before implementation; 47 route tests now pass. The profile target-role regression failed on persistence before implementation and now passes. Browser regressions first failed on missing context/rich report UI; a drill-opening regression caught a generic greeting instead of the reviewed question and now passes. Final verification: 139 unit/API tests and 23 browser tests pass, with 95.31% instrumented statements and 88.84% branches. Lint, typecheck, diff whitespace checks and the Webpack production build pass. Webpack was selected for local verification, keeping the default build script unchanged.
+
+A real two-answer synthetic Pro report passed exact-evidence validation in 22.47 seconds. An isolated browser run then generated a real Pro report, saved both its coaching and progress into a test local profile, reloaded and reopened the answer heatmap. No synthetic data was inserted into the user's browser profile. Existing reports remain readable; old and new scoring rubrics may differ, so use source evidence alongside chart estimates.
+
+
+## Streaming chat transcript — 10 October 2026
+
+Both Start live voice and Record your answer display accumulating Gradium text in one temporary chat bubble. The transcript follows each update; only the completed answer enters Gemini history and saved reports. Manual recording streams the existing microphone frames through a short-lived-token sidecar, aggregated into 80 ms PCM frames, while retaining its WAV transcription as the final source. A preview connection failure leaves the recording usable and shows a nonfatal status. Preview connections, pending tokens, timers and late callbacks are cleaned up on finish, cancel, reset and recording timeout.
+
+TDD: manual streaming/browser regressions failed before integration and now pass; 19 focused sidecar tests cover frame order, sample rates, bounded startup buffering, incremental words, cancellation and failure fallback. A real synthetic Gradium speech check produced nine incremental text updates at 48 kHz through the new sidecar. Partial final words can remain buffered until further audio; the manual mode's final WAV pass supplies the completed message.
+
+Final streaming verification: 158 unit/API tests and 25 browser tests pass; instrumented coverage 95.45% statements / 88.65% branches. Lint, typecheck, whitespace checks and Webpack production build pass.
+
+## Raw recognised speech and delivery tracking — 10 October 2026
+
+Live voice and recorded answers retain recognised fillers, repetitions, punctuation and whitespace. Original Gradium text segments and available `start_s` / `stop_s` boundaries are saved with each voice answer in the local profile; Gemini requests receive only the dialogue text. The report counts explicit fillers and adjacent repeated words, lists possible speech habits separately, compares filler frequency against the previous matching conversation, and shows measured gaps between consecutive segments with known boundaries. Original recognised segments remain inspectable. Typed answers and older reports show tracking as unavailable.
+
+These are recognised-text statistics, not acoustic tone or personality measurements. Punctuation comes from the recogniser, segment boundaries do not guarantee exact word timings or every pause, and missing timestamps are never invented. Gradium's documented transcription settings do not expose a verbatim mode. A real synthetic TTS→STT check returned repeated words and segment timestamps but omitted the requested `um` / `uh`; that round-trip cannot distinguish synthesis omissions from recognition omissions. The application preserves everything returned, but cannot guarantee all spoken fillers without a separate audio-analysis path. Audio is not persisted to the profile.
+
+TDD regressions cover raw text and timing through capture, validation, profile storage, report rendering and reload, plus empty provider events. Verification: 175 unit/API tests and 26 browser tests pass; lint, typecheck, whitespace checks and the Webpack production build pass.
