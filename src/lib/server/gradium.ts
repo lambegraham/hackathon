@@ -104,7 +104,7 @@ export async function speak(text: string) {
             text, voice_id: process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ', output_format: 'wav', only_audio: true
         })
     }, async (response) => {
-        const bytes = await boundedResponse(response, 16 * 1024 * 1024);
+        const bytes = finalizeStreamingWav(await boundedResponse(response, 16 * 1024 * 1024));
         try {
             validateWav(bytes, 300);
         }
@@ -113,4 +113,27 @@ export async function speak(text: string) {
         }
         return bytes;
     }) as Uint8Array;
+}
+
+function finalizeStreamingWav(source: Uint8Array) {
+    // Gradium streams WAV with unknown RIFF/data sizes. Finalize only these
+    // sentinel fields after the bounded response ends; validate everything next.
+    const bytes = source.slice();
+    if (bytes.length < 44)
+        return bytes;
+    const view = new DataView(bytes.buffer);
+    const tag = (offset: number) => new TextDecoder().decode(bytes.subarray(offset, offset + 4));
+    if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE')
+        return bytes;
+    if (view.getUint32(4, true) === 0xffffffff)
+        view.setUint32(4, bytes.length - 8, true);
+    for (let offset = 12; offset + 8 <= bytes.length;) {
+        const size = view.getUint32(offset + 4, true);
+        if (tag(offset) === 'data' && size === 0xffffffff) {
+            view.setUint32(offset + 4, bytes.length - offset - 8, true);
+            break;
+        }
+        offset += 8 + size + (size % 2);
+    }
+    return bytes;
 }
