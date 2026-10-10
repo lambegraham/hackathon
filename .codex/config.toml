@@ -1,0 +1,4 @@
+[mcp_servers.entire_brain]
+command = "entire"
+args = ["brain", "mcp"]
+startup_timeout_sec = 30
