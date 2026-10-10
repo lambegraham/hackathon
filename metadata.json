@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4K4CBTN1D1P1WW3S57V6RKV",
   "strategy": "manual-commit",
   "branch": "feat/voice-profiles-speech-tracking",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "README.md",
     "src/components/coach.tsx",
@@ -21,14 +21,21 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 326886,
+    "input_tokens": 384756,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 14743296,
-    "output_tokens": 21461,
-    "api_call_count": 125,
+    "cache_read_tokens": 14882560,
+    "output_tokens": 22063,
+    "api_call_count": 129,
     "subagent_tokens": {
       "input_tokens": 0,
       "cache_creation_tokens": 0,

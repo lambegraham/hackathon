@@ -1,0 +1,83 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K4CBTN1D1P1WW3S57V6RKV",
+  "session_id": "01a125ec-aaf6-7a82-b30c-77212ee1b001",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T14:44:57.883002Z",
+  "branch": "feat/voice-profiles-speech-tracking",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "README.md",
+    "src/components/coach.tsx",
+    "src/lib/contracts.ts",
+    "src/lib/server/gemini.ts",
+    "src/lib/server/routes.test.ts",
+    "src/lib/server/validation.ts",
+    "src/lib/streaming-audio.test.ts",
+    "src/lib/streaming-audio.ts"
+  ],
+  "agent": "Codex",
+  "model": "gpt-6.1-sol",
+  "turn_id": "25cc2dd1ca5f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 57870,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 139264,
+    "output_tokens": 602,
+    "api_call_count": 4,
+    "subagent_tokens_complete": true
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T14:44:57.875279Z",
+    "agent_lines": 295,
+    "agent_removed": 37,
+    "human_added": 1796,
+    "human_modified": 45,
+    "human_removed": 0,
+    "total_committed": 2136,
+    "total_lines_changed": 2186,
+    "agent_percentage": 15.187557182067705,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1230,
+      "user_lines_removed": 45,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "README.md": 13,
+        "e2e/duplex.spec.ts": 146,
+        "e2e/profile.spec.ts": 70,
+        "src/app/api/voice-token/route.ts": 80,
+        "src/components/coach.tsx": 102,
+        "src/lib/contracts.ts": 4,
+        "src/lib/duplex-session.test.ts": 164,
+        "src/lib/duplex-session.ts": 171,
+        "src/lib/feedback.ts": 28,
+        "src/lib/profile.test.ts": 107,
+        "src/lib/profile.ts": 134,
+        "src/lib/server/gemini.ts": 20,
+        "src/lib/server/routes.test.ts": 47,
+        "src/lib/server/validation.ts": 2,
+        "src/lib/server/voice-token.test.ts": 118,
+        "src/lib/streaming-audio.test.ts": 17,
+        "src/lib/streaming-audio.ts": 7
+      },
+      "user_removed_per_file": {
+        "README.md": 5,
+        "src/components/coach.tsx": 23,
+        "src/lib/server/gemini.ts": 5,
+        "src/lib/server/routes.test.ts": 4,
+        "src/lib/server/validation.ts": 3,
+        "src/lib/streaming-audio.ts": 5
+      }
+    }
+  ]
+}
