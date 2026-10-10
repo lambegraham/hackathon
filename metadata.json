@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K8T8Q5KGBB8F7R505E2VQE",
+  "strategy": "manual-commit",
+  "branch": "feat/practice-levels",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "src/app/globals.css",
+    "src/components/coach.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9399,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1629440,
+    "output_tokens": 3554,
+    "api_call_count": 4
+  }
+}

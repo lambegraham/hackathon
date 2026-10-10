@@ -1,0 +1,119 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K8T8Q5KGBB8F7R505E2VQE",
+  "session_id": "c15ae0b5-4e45-4338-b64f-3ecfe3419fb2",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T16:02:26.357997Z",
+  "branch": "feat/practice-levels",
+  "checkpoints_count": 7,
+  "save_step_count": 6,
+  "files_touched": [
+    "src/app/globals.css",
+    "src/components/coach.tsx"
+  ],
+  "agent": "Cursor",
+  "model": "grok-4.7-high",
+  "turn_id": "435bbde0ab66",
+  "checkpoint_transcript_start": 187,
+  "transcript_lines_at_start": 187,
+  "compact_transcript_start": 84,
+  "token_usage": {
+    "input_tokens": 9399,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1629440,
+    "output_tokens": 3554,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "duration_ms": 4433536,
+    "turn_count": 23
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T16:02:26.346214Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 32,
+    "human_removed": 25,
+    "total_committed": 6,
+    "total_lines_changed": 57,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 55,
+      "user_lines_removed": 13,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40,
+        "src/components/coach.tsx": 15
+      },
+      "user_removed_per_file": {
+        "src/components/coach.tsx": 13
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 15,
+      "agent_lines_removed": 13,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 41,
+      "user_lines_removed": 1,
+      "agent_lines_added": 80,
+      "agent_lines_removed": 48,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40,
+        "src/components/coach.tsx": 1
+      },
+      "user_removed_per_file": {
+        "src/components/coach.tsx": 1
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 79,
+      "agent_lines_removed": 47,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 71,
+      "user_lines_removed": 43,
+      "agent_lines_added": 83,
+      "agent_lines_removed": 48,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40,
+        "src/app/globals.css": 13,
+        "src/components/coach.tsx": 18
+      },
+      "user_removed_per_file": {
+        "src/app/globals.css": 16,
+        "src/components/coach.tsx": 27
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 40,
+      "user_lines_removed": 0,
+      "agent_lines_added": 78,
+      "agent_lines_removed": 55,
+      "user_added_per_file": {
+        ".cursor/hooks.json": 40
+      }
+    }
+  ]
+}
