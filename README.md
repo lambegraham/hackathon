@@ -8,7 +8,7 @@ Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b
 
 Use Node.js 22.21 or newer. Install with `npm ci`, copy `.env.example` to `.env.local`, then set `GEMINI_API_KEY` and `GRADIUM_API_KEY`. Run `npm run dev` and open http://127.0.0.1:3000.
 
-Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. `GEMINI_MODEL` defaults to `gemini-3.8-flash` for both conversation and feedback. Set it to a model available to your event account. `GRADIUM_VOICE_ID` defaults to the voice in Gradium's REST example; replace it with your Studio voice if needed. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
+Keys stay on the server. The page reports missing provider configuration; it does not substitute canned responses. Conversation defaults to `gemini-3.5-flash-lite` and feedback to `gemini-3.8-flash`. Override them with `GEMINI_CONVERSATION_MODEL` and `GEMINI_FEEDBACK_MODEL`; `GEMINI_MODEL` remains the fallback for either role. `GRADIUM_VOICE_ID` defaults to the voice in Gradium's REST example; replace it with your Studio voice if needed. Google Cloud credits and Gemini API billing may differ: use credentials for the endpoint your event account provides.
 
 ## Gradium hackathon setup
 
@@ -25,7 +25,7 @@ For the submission, identify the features as Gradium REST STT and TTS, include t
 
 ## Demo
 
-The page opens with a short “Got credits? :)” intro, then a sunflower in a garden. Pick an outfit from **The wardrobe** (click a hanger, use the arrows, or ←/→ on the rail), for example **Bazaar negotiation**, and start practising. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
+The page opens with a short “Got credits? :)” intro, then a sunflower in the rehearsal studio. The Aura visualizer sits behind the sunflower; focus and full-stage controls adjust the layout. Pick an outfit from **The wardrobe** (click a hanger, use the arrows, or ←/→ on the rail), for example **Bazaar negotiation**, and start practising. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
 
 The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The sunflower’s face mirrors the detected feeling and has listening, thinking and talking states.
 
@@ -33,9 +33,9 @@ The microphone uses push-to-talk: click to record, then finish your turn. Audio 
 
 Each turn, Gemini classifies the tone of the wording of your latest message (`confident`, `calm`, `enthusiastic`, `neutral`, `hesitant`, `nervous`, `defensive`, `frustrated`, `upset`) and picks a tonality for its reply. The page states both in bold, for example “I’m sensing you feel nervous, so I’m adapting a reassuring tone. Hadley is here to train you.” The UI always uses `auto`; the API still accepts a fixed `tonality`, which the server enforces. Tone is judged from words only; Gradium STT returns text, not prosody.
 
-Gradium TTS has no tone parameter: tonality is a property of the voice (its `emotion` tag in Studio). Each tonality maps to a catalog en-US voice in `src/lib/tonality.ts`: calm (Holly), reassuring (Hadley), empathic (Drew), friendly (Wendy), confident (Harrison), excited (Quinn), neutral (Kelsey). Override any of them with `GRADIUM_VOICE_<TONALITY>`, for example `GRADIUM_VOICE_CALM`. Speech without a tonality still uses `GRADIUM_VOICE_ID`.
+Gradium TTS has no tone parameter: tonality is a property of the voice (its `emotion` tag in Studio). Each tonality maps to a catalog en-US voice in `src/lib/tonality.ts`: calm (Holly), reassuring (Hadley), empathic (Drew), friendly (Wendy), confident (Harrison), excited (Quinn), neutral (Kelsey). Override any of them with `GRADIUM_VOICE_<TONALITY>`, for example `GRADIUM_VOICE_CALM`. The studio defaults to **Automatic tone**. Selecting Marshall or Lainey explicitly overrides the tone-based voice; tone classification and the sunflower’s expression still update. Speech without a tonality or voice selection uses `GRADIUM_VOICE_ID`. Replies stream mono 48 kHz PCM16 into Web Audio as chunks arrive. Reset cancels the request and queued playback; speech errors leave the written reply available.
 
-Conversation turns use `thinkingLevel: LOW`. Gemini 3 thinking tokens count against `maxOutputTokens`; at the default level a short turn could spend its 500-token budget thinking and return truncated JSON.
+Conversation turns use minimal thinking on `gemini-3.5-flash-lite` and low thinking on `gemini-3.8-flash`; other model overrides retain their default settings. Gemini 3 thinking tokens count against `maxOutputTokens`; at the default level a short turn could spend its 500-token budget thinking and return truncated JSON.
 
 ## Architecture and ownership
 
@@ -56,7 +56,7 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | `GET /api/status` | None | Provider key presence booleans; never keys |
 | `POST /api/transcribe` | Raw `audio/wav` | `{ text }` |
 | `POST /api/converse` | Session and message history | `{ reply, userTone, tonality }` |
-| `POST /api/speak` | `{ text, tonality? }` | `audio/wav` bytes |
+| `POST /api/speak` | `{ text, tonality?, voiceId?, format? }` | WAV by default; `format: "pcm"` streams `audio/pcm` with `X-Audio-Sample-Rate: 48000` |
 | `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse }` |
 
 Session input: `scenarioId`, `difficulty`, optional `customScenario`, optional `tonality` (`auto` by default), and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `flatmate`, `coldcall`, `bazaar`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.

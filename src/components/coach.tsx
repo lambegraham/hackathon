@@ -1,23 +1,47 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Mic, RotateCcw, Send, Square } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Maximize2,
+  MessageCircle,
+  Mic,
+  Minimize2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RotateCcw,
+  Send,
+  Sparkles,
+  Square,
+  Volume2
+} from 'lucide-react';
+import { createStreamingPlayer } from '@/lib/streaming-audio';
+import { VOICES, type VoiceId } from '@/lib/voices';
 import { SCENARIOS } from '@/lib/scenarios';
-import { tonalityById, userToneLabel } from '@/lib/tonality';
 import type { ConversationMessage, ConverseReply, FeedbackReport, Tonality, UserTone } from '@/lib/contracts';
 import { useVoiceSession } from '@/hooks/use-voice-session';
-import { Sunflower, type FlowerState } from './sunflower';
-import type { OutfitId } from './outfits';
+import { Avatar, type AvatarState } from './avatar';
+import { Sunflower } from './sunflower';
 import { Wardrobe } from './wardrobe';
+import type { OutfitId } from './outfits';
+import { tonalityById, userToneLabel } from '@/lib/tonality';
 
+type Difficulty = 'friendly' | 'neutral' | 'challenging';
 type Setup = { gemini: boolean; gradium: boolean };
-type Tones = { userTone?: UserTone; tonality?: Tonality };
-
-const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 
 async function responseError(response: Response) {
   const body = await response.json().catch(() => null);
   return typeof body?.error === 'string' ? body.error : 'Something went wrong. Please try again.';
+}
+
+function SoundWave({ active = false, color = 'blue' }: { active?: boolean; color?: 'blue' | 'slate' }) {
+  return (
+    <div className={`sound-wave ${active ? 'active' : ''} sound-wave-${color}`} aria-hidden="true">
+      <span /><span /><span /><span /><span /><span /><span />
+    </div>
+  );
 }
 
 function Intro({ onDone }: { onDone: () => void }) {
@@ -34,48 +58,57 @@ function Intro({ onDone }: { onDone: () => void }) {
   </div>;
 }
 
-function Scenery() {
-  return <div className="scenery" aria-hidden="true">
-    <span className="cloud cloud-a" /><span className="cloud cloud-b" /><span className="cloud cloud-c" />
-    <svg className="hills" viewBox="0 0 1440 420" preserveAspectRatio="none">
-      <path d="M0 210C180 90 330 120 480 180s300 10 470-90 330 20 490 70v260H0z" fill="#b9cfa8" />
-      <path d="M0 290c200-90 380-60 560 0s340 40 520-30 280-40 360 0v160H0z" fill="#93b77f" />
-      <path d="M0 360c240-60 480-50 720 0s480 40 720-10v70H0z" fill="#79a564" />
-    </svg>
-  </div>;
-}
-
 export function Coach() {
   const [intro, setIntro] = useState(true);
   const endIntro = useCallback(() => setIntro(false), []);
+  const [tones, setTones] = useState<{ userTone?: UserTone; tonality?: Tonality }>({});
   const [scenarioId, setScenarioId] = useState<OutfitId>('interview');
+  const [voiceId, setVoiceId] = useState<VoiceId | 'auto'>('auto');
+  const [preparingVoice, setPreparingVoice] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>('neutral');
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [tones, setTones] = useState<Tones>({});
   const [draft, setDraft] = useState('');
-  const [state, setState] = useState<FlowerState>('idle');
+  const [state, setState] = useState<AvatarState>('idle');
   const [busy, setBusy] = useState(false);
   const [micStarting, setMicStarting] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [stageMaximized, setStageMaximized] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<FeedbackReport | null>(null);
   const [setup, setSetup] = useState<Setup | null>(null);
   const [setupFailed, setSetupFailed] = useState(false);
+
   const recorder = useVoiceSession();
   const lock = useRef(false);
   const generation = useRef(0);
   const controller = useRef<AbortController | null>(null);
-  const audio = useRef<HTMLAudioElement | null>(null);
-  const audioUrl = useRef<string | null>(null);
+  const player = useRef<ReturnType<typeof createStreamingPlayer> | null>(null);
+  const transcriptEnd = useRef<HTMLDivElement | null>(null);
+
   const scenario = SCENARIOS.find(item => item.id === scenarioId) ?? SCENARIOS[0];
+  const voice = VOICES.find(item => item.id === voiceId);
+  const tone = tones.tonality && tonalityById(tones.tonality);
+  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
+  const counterpartRole = ({
+    interview: 'Interviewer',
+    raise: 'Your manager',
+    relationship: 'Your partner',
+    feedback: 'Your colleague',
+    custom: 'Your counterpart',
+    flatmate: 'Your flatmate', coldcall: 'Your customer', bazaar: 'The seller'
+  } as Record<string, string>)[scenarioId];
+  const counterpart = `${voice?.name ?? tone?.voiceName ?? 'Sunflower'} · ${counterpartRole}`;
   const hasUserTurn = messages.some(message => message.role === 'user');
-  const lastReply = [...messages].reverse().find(message => message.role === 'assistant')?.content;
-  const lastAnswer = [...messages].reverse().find(message => message.role === 'user')?.content;
 
   function stopAudio() {
-    audio.current?.pause();
-    audio.current = null;
-    if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
-    audioUrl.current = null;
+    player.current?.stop();
+  }
+
+  function getPlayer() {
+    player.current ??= createStreamingPlayer();
+    return player.current;
   }
 
   useEffect(() => {
@@ -87,36 +120,55 @@ export function Coach() {
     return () => { abort.abort(); controller.current?.abort(); stopAudio(); };
   }, []);
 
+  useEffect(() => {
+    transcriptEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+  }, [messages, busy]);
+
+  useEffect(() => {
+    if (!recorder.isRecording) return;
+    const timer = setInterval(() => setRecordingSeconds(seconds => Math.min(60, seconds + 1)), 1000);
+    return () => clearInterval(timer);
+  }, [recorder.isRecording]);
+
   function reset() {
     generation.current += 1;
     controller.current?.abort();
     recorder.cancelRecording();
     stopAudio();
     lock.current = false;
+    setRecordingSeconds(0);
     setStarted(false); setMessages([]); setTones({}); setDraft(''); setReport(null);
-    setError(''); setState('idle'); setBusy(false); setMicStarting(false);
+    setError(''); setState('idle'); setBusy(false); setMicStarting(false); setPreparingVoice(false);
   }
 
   async function speak(text: string, token: number, signal: AbortSignal, tonality?: Tonality) {
     if (!setup?.gradium) return;
+    setPreparingVoice(true);
     try {
-      const response = await fetch('/api/speak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, tonality }), signal });
+      const response = await fetch('/api/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voiceId: voiceId === 'auto' ? undefined : voiceId, tonality, format: 'pcm' }),
+        signal
+      });
       if (!response.ok) throw new Error(await responseError(response));
-      const blob = await response.blob();
       if (token !== generation.current) return;
-      stopAudio();
-      audioUrl.current = URL.createObjectURL(blob);
-      const playback = new Audio(audioUrl.current);
-      audio.current = playback;
-      await new Promise<void>((resolve, reject) => {
-        playback.onended = () => resolve();
-        playback.onerror = () => reject(new Error('Audio could not play. The reply is written above.'));
-        signal.addEventListener('abort', () => { playback.pause(); resolve(); }, { once: true });
-        playback.play().then(() => { if (token === generation.current) setState('speaking'); }).catch(() => reject(new Error('Audio could not play. The reply is written above.')));
+      await getPlayer().play(response, signal, () => {
+        if (token === generation.current) {
+          setPreparingVoice(false);
+          setState('speaking');
+        }
       });
     } catch (cause) {
-      if (token === generation.current && !signal.aborted) setError(cause instanceof Error ? `${cause.message} You can continue by typing.` : 'Speech unavailable. You can continue by typing.');
-    } finally { if (token === generation.current) stopAudio(); }
+      if (token === generation.current && !signal.aborted) {
+        setError(cause instanceof Error ? `${cause.message} You can continue by typing.` : 'Speech unavailable. You can continue by typing.');
+      }
+    } finally {
+      if (token === generation.current) {
+        setPreparingVoice(false);
+        stopAudio();
+      }
+    }
   }
 
   function begin() {
@@ -125,16 +177,21 @@ export function Coach() {
     setStarted(true); setError('');
   }
 
-  async function sendTurn(text: string, token: number, signal: AbortSignal) {
+  async function sendTurn(text: string, token: number, signal: AbortSignal, speechReady = true) {
     const next: ConversationMessage[] = [...messages, { role: 'user', content: text }];
     setMessages(next); setDraft(''); setState('thinking');
-    const response = await fetch('/api/converse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty: 'neutral', tonality: 'auto', messages: next }), signal });
+    const response = await fetch('/api/converse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenarioId, difficulty, tonality: 'auto', messages: next }),
+      signal
+    });
     if (!response.ok) throw new Error(await responseError(response));
     const { reply, userTone, tonality }: Partial<ConverseReply> & { reply: string } = await response.json();
     if (token !== generation.current) return;
     setMessages([...next, { role: 'assistant', content: reply }]);
     setTones({ userTone, tonality });
-    await speak(reply, token, signal, tonality);
+    if (speechReady) await speak(reply, token, signal, tonality);
   }
 
   async function runTurn(source: 'text' | 'voice') {
@@ -143,19 +200,40 @@ export function Coach() {
     const token = generation.current;
     const abort = new AbortController(); controller.current = abort;
     try {
+      let speechReady = !!setup?.gradium;
+      if (speechReady) {
+        try { await getPlayer().prepare(); }
+        catch {
+          speechReady = false;
+          if (token === generation.current) {
+            stopAudio();
+            setError('Audio could not start. Your reply will appear in the transcript.');
+          }
+        }
+      }
+      if (token !== generation.current || abort.signal.aborted) return;
       let text = draft.trim();
       if (source === 'voice') {
         setState('thinking');
         const blob = await recorder.stopRecording();
-        const response = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: blob, signal: abort.signal });
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'audio/wav' },
+          body: blob,
+          signal: abort.signal
+        });
         if (!response.ok) throw new Error(await responseError(response));
         text = (await response.json()).text;
       }
-      if (token === generation.current && text.trim()) await sendTurn(text, token, abort.signal);
+      if (token === generation.current && text.trim()) await sendTurn(text, token, abort.signal, speechReady);
     } catch (cause) {
-      if (token === generation.current && !abort.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not send your answer. Please try again.');
+      if (token === generation.current && !abort.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : 'Could not send your answer. Please try again.');
+      }
     } finally {
-      if (token === generation.current) { lock.current = false; setBusy(false); setState('idle'); }
+      if (token === generation.current) {
+        lock.current = false; setBusy(false); setState('idle'); setPreparingVoice(false);
+      }
     }
   }
 
@@ -165,10 +243,12 @@ export function Coach() {
     const token = generation.current;
     lock.current = true; setBusy(true); setMicStarting(true);
     setError(''); stopAudio();
-    try { await recorder.startRecording(); } catch { /* Recorder displays its actionable error. */ }
+    setRecordingSeconds(0);
+    try { await recorder.startRecording(); }
+    catch { /* Recorder displays its actionable error. */ }
     finally {
       if (token === generation.current) {
-        lock.current = false; setBusy(false); setMicStarting(false);
+        lock.current = false; setBusy(false); setMicStarting(false); setPreparingVoice(false);
       }
     }
   }
@@ -179,65 +259,335 @@ export function Coach() {
     const token = generation.current;
     const abort = new AbortController(); controller.current = abort;
     try {
-      const response = await fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId, difficulty: 'neutral', messages }), signal: abort.signal });
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenarioId, difficulty, messages }),
+        signal: abort.signal
+      });
       if (!response.ok) throw new Error(await responseError(response));
       const feedback = await response.json();
       if (token === generation.current) setReport(feedback);
-    } catch (cause) { if (token === generation.current && !abort.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not create feedback. Try again.'); }
-    finally { if (token === generation.current) { lock.current = false; setBusy(false); setState('idle'); } }
+    } catch (cause) {
+      if (token === generation.current && !abort.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : 'Could not create feedback. Try again.');
+      }
+    } finally {
+      if (token === generation.current) {
+        lock.current = false; setBusy(false); setState('idle'); setPreparingVoice(false);
+      }
+    }
   }
 
-  const flowerState: FlowerState = recorder.isRecording ? 'listening' : state;
-  const tone = tones.tonality && tonalityById(tones.tonality);
-  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
+  const avatarState = recorder.isRecording ? 'listening' : state;
+  const statusText = micStarting
+    ? 'Connecting your microphone'
+    : recorder.isRecording
+    ? 'Listening to you'
+    : preparingVoice
+    ? 'Preparing voice'
+    : state === 'thinking'
+    ? 'Thinking it through'
+    : state === 'speaking'
+    ? `${counterpart.split(' · ')[0]} is speaking`
+    : '';
+
   const headline = report ? 'Here’s what you can take with you.'
-    : feeling && tone ? `I’m sensing you feel ${feeling}, so I’m adapting ${article(tone.label)} ${tone.label.toLowerCase()} tone. ${tone.voiceName} is here to train you.`
+    : feeling && tone ? `I’m sensing you feel ${feeling}, so I’m adapting ${/^[aeiou]/i.test(tone.label) ? 'an' : 'a'} ${tone.label.toLowerCase()} tone. ${voice?.name ?? tone.voiceName} is here to train you.`
     : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.'
     : 'Hi, I’m your practice sunflower. Dress me for the talk you want to train.';
-  const status = micStarting ? 'connecting your microphone' : recorder.isRecording ? 'listening' : state === 'thinking' ? 'thinking' : state === 'speaking' ? `${tone?.voiceName ?? 'sunflower'} is speaking` : started ? 'your turn' : 'ready when you are';
 
-  return <main className="garden">
-    {intro && <Intro onDone={endIntro} />}
-    <Scenery />
-    <header className="corner"><span className="corner-mark">Got credits? <b>:)</b></span><span className="corner-status">{status}</span></header>
-    <section className="stage">
-      <Sunflower state={flowerState} mood={(report ? undefined : tones.userTone) ?? 'happy'} outfit={scenarioId} />
-      <div className="copy">
-        <h1 className={`headline ${(feeling && tone && !report) || !started ? 'headline-long' : ''}`} aria-live="polite">{headline}</h1>
-        {(setupFailed || (setup && !setup.gemini)) && <p className="notice" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Connect Gemini to start practising. Add GEMINI_API_KEY and restart the app.'}</p>}
-        {setup?.gemini && !setup.gradium && <p className="notice" role="status">Voice is off until GRADIUM_API_KEY is configured. You can still type.</p>}
-        {report ? <div className="report">
-          <p className="report-summary">{report.summary}</p>
-          <div className="report-grid">
-            <div><h2>What worked</h2>{report.strengths.map((item, index) => <p key={index}>{item}</p>)}</div>
-            <div><h2>Try next time</h2>{report.improvements.map((item, index) => <p key={index}>{item}</p>)}</div>
+  const gridClass = [
+    'studio-grid',
+    sidebarCollapsed && 'sidebar-collapsed',
+    stageMaximized && 'stage-maximized'
+  ].filter(Boolean).join(' ');
+
+  return (
+    <main className="app-shell">
+      {intro && <Intro onDone={endIntro} />}
+      {/* TOPBAR */}
+      <header className="topbar">
+        <a href="/" className="brand" aria-label="Rehearsal home">
+          <span className="brand-mark"><MessageCircle size={18} /></span>
+          rehearsal<span className="brand-dot">.</span>
+        </a>
+        <div className="topbar-actions">
+          <span className="preview-tag">Session</span>
+        </div>
+      </header>
+
+      {/* PAGE HEADING */}
+      <section className="page-heading">
+        <div>
+          <div className="eyebrow">{scenario.title.toUpperCase()}</div>
+          <h1 aria-live="polite">{headline}</h1>
+        </div>
+        <div className="session-chip">
+          <span />
+          {report ? 'Session complete' : started ? 'In progress' : 'Ready'}
+        </div>
+      </section>
+
+      {/* SETUP ALERTS */}
+      {(setupFailed || (setup && !setup.gemini)) && (
+        <div className="setup-notice" role="status">
+          <strong>{setupFailed ? 'Could not check service availability.' : 'Connect Gemini to start practising.'}</strong>{' '}
+          {setupFailed ? 'Refresh the page to try again.' : 'Add GEMINI_API_KEY to the server environment, then restart the app.'}
+        </div>
+      )}
+      {setup?.gemini && !setup.gradium && (
+        <div className="setup-notice" role="status">
+          Voice is unavailable until GRADIUM_API_KEY is configured. You can practise by typing.
+        </div>
+      )}
+
+      {/* REPORT VIEW OR ACTIVE STUDIO */}
+      {report ? (
+        <section className="report-layout">
+          <div className="report-card">
+            <div className="eyebrow">SESSION NOTES</div>
+            <h2>A stronger next conversation.</h2>
+            <p className="report-summary">{report.summary}</p>
+            <div className="feedback-grid">
+              <div>
+                <h3><Check size={17} /> What worked</h3>
+                {report.strengths.map((item, index) => <p key={index}>{item}</p>)}
+              </div>
+              <div>
+                <h3><Sparkles size={17} /> Try next time</h3>
+                {report.improvements.map((item, index) => <p key={index}>{item}</p>)}
+              </div>
+            </div>
+            <div className="suggested">
+              <span className="eyebrow">WORDS TO MAKE YOUR OWN</span>
+              <blockquote>“{report.suggestedResponse}”</blockquote>
+            </div>
+            <button className="primary" onClick={reset}>
+              <RotateCcw size={16} /> Practise again
+            </button>
           </div>
-          <blockquote>“{report.suggestedResponse}”</blockquote>
-          <button className="pill pill-solid" onClick={reset}><RotateCcw size={16} /> Practise again</button>
-        </div> : started && <div className="dialogue">
-          {lastAnswer && <p className="said-you">You: {lastAnswer}</p>}
-          {lastReply && <p className="said-flower">“{lastReply}”</p>}
-          {busy && state === 'thinking' && <p className="said-thinking">thinking…</p>}
-        </div>}
-        {(error || recorder.error) && <p className="error" role="alert">{error || recorder.error}</p>}
-      </div>
-      {!report && <div className="dock">
-        {!started ? <>
-          <Wardrobe value={scenarioId} onChange={setScenarioId} />
-          <button className="start" disabled={!setup?.gemini} onClick={begin}>Start practising <ArrowRight size={20} /></button>
-        </> : <>
-          <button className={`mic ${recorder.isRecording ? 'mic-on' : ''}`} disabled={busy || !setup?.gradium} onClick={toggleRecording}>{recorder.isRecording ? <Square size={22} fill="currentColor" /> : <Mic size={26} />}<span className="sr-only">{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span></button>
-          <form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
-            <label className="sr-only" htmlFor="answer">Your answer</label>
-            <input id="answer" placeholder="or type your answer…" value={draft} onChange={event => setDraft(event.target.value)} disabled={busy || recorder.isRecording} maxLength={4000} autoComplete="off" />
-            <button aria-label="Send answer" disabled={busy || recorder.isRecording || !draft.trim()}><Send size={18} /></button>
-          </form>
-          <div className="dock-actions">
-            <button className="pill" disabled={busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End session & get feedback</button>
-            <button className="pill pill-icon" onClick={reset} aria-label="Reset session"><RotateCcw size={16} /></button>
-          </div>
-        </>}
-      </div>}
-    </section>
-  </main>;
+          <aside className="report-side">
+            <Sunflower state="idle" mood="happy" outfit={scenarioId} />
+            <h3>Practice counts.</h3>
+            <span>Session held in this browser only.</span>
+          </aside>
+        </section>
+      ) : (
+        <div className={gridClass}>
+          {/* LEFT: SCENARIO PANEL */}
+          <aside className="scenario-panel">
+            <div className="panel-heading">
+              <span>Scenarios</span>
+            </div>
+            {!started && <Wardrobe value={scenarioId} onChange={setScenarioId} />}
+            {started && <p>{scenario.title}</p>}
+
+            <div className="difficulty">
+              <label htmlFor="difficulty">Their approach</label>
+              <select
+                id="difficulty"
+                value={difficulty}
+                disabled={started}
+                onChange={event => setDifficulty(event.target.value as Difficulty)}
+              >
+                <option value="friendly">Friendly</option>
+                <option value="neutral">Neutral</option>
+                <option value="challenging">Challenging</option>
+              </select>
+
+              <label htmlFor="voice">Their voice</label>
+              <select
+                id="voice"
+                value={voiceId}
+                disabled={started}
+                onChange={event => setVoiceId(event.target.value as VoiceId | 'auto')}
+              >
+                <option value="auto">Automatic tone</option>
+                {VOICES.map(item => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+              </select>
+            </div>
+          </aside>
+
+          {/* CENTER: REHEARSAL STAGE */}
+          <section className="stage-panel">
+            <div className="stage-top">
+              <button
+                className="stage-tool-btn"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                title={sidebarCollapsed ? "Show scenarios" : "Hide scenarios"}
+              >
+                {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+                <span>{sidebarCollapsed ? "Scenarios" : "Focus"}</span>
+              </button>
+
+              <span className="difficulty-badge">{difficulty}</span>
+
+              <button
+                className="stage-tool-btn stage-tool-icon"
+                onClick={() => setStageMaximized(!stageMaximized)}
+                aria-label={stageMaximized ? "Restore view" : "Maximize stage"}
+                title={stageMaximized ? "Exit full view" : "Full stage"}
+              >
+                {stageMaximized ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              </button>
+            </div>
+
+            <div className="avatar-stage">
+              <div className="stage-orbit" />
+              <Avatar state={avatarState} gender={voice?.gender} scenario={scenarioId} difficulty={difficulty} />
+              <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={scenarioId} />
+
+              <div className="stage-persona">
+                <span className="counterpart-name">{counterpart}</span>
+                {avatarState === 'speaking' && (
+                  <SoundWave active={true} color="blue" />
+                )}
+              </div>
+
+              {statusText && (
+                <div className={`state-indicator state-${avatarState}`}>
+                  <span />
+                  {statusText}
+                </div>
+              )}
+            </div>
+
+            <div className="stage-bottom">
+              {!started ? (
+                <div className="stage-action-center">
+                  <button
+                    className="primary start-button"
+                    disabled={!setup?.gemini}
+                    onClick={begin}
+                  >
+                    Start practising <ArrowRight size={17} />
+                  </button>
+                </div>
+              ) : (
+                <div className="stage-controls-area">
+                  {/* Clean Horizontal Status Row in Whitespace (No Overlap, No Red Numbers) */}
+                  {recorder.isRecording && (
+                    <div className="recording-status-row" aria-live="polite">
+                      <span className="rec-pulse-dot" />
+                      <span className="rec-time-text">
+                        {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:
+                        {String(recordingSeconds % 60).padStart(2, '0')} / 01:00
+                      </span>
+                      <SoundWave active={true} color="slate" />
+                    </div>
+                  )}
+
+                  <div className="record-container">
+                    <button
+                      className={`record-button ${recorder.isRecording ? 'recording' : ''}`}
+                      disabled={busy || !setup?.gradium}
+                      onClick={toggleRecording}
+                    >
+                      {recorder.isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={20} />}
+                      <span>{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span>
+                    </button>
+                  </div>
+
+                  <div className="session-actions">
+                    <button
+                      disabled={busy || !hasUserTurn || recorder.isRecording}
+                      onClick={finish}
+                    >
+                      End session & get feedback <ChevronRight size={14} />
+                    </button>
+                    <button className="reset-button" onClick={reset} aria-label="Reset session">
+                      <RotateCcw size={15} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* RIGHT: TRANSCRIPT PANEL */}
+          <section className="transcript-panel">
+            <div className="panel-heading">
+              <div className="transcript-title">
+                <Volume2 size={15} />
+                <span>Conversation</span>
+              </div>
+              <span className="turn-count-badge">
+                {messages.length > 0 ? `${messages.filter(m => m.role === 'user').length} turns` : 'Ready'}
+              </span>
+            </div>
+
+            <div className="transcript" aria-live="polite" aria-relevant="additions">
+              {messages.length === 0 ? (
+                <div className="empty-transcript">
+                  <span><MessageCircle size={24} /></span>
+                  <h3>The first words are yours.</h3>
+                </div>
+              ) : (
+                messages.map((message, index) => {
+                  const isUser = message.role === 'user';
+                  const userTurnNumber = messages.slice(0, index + 1).filter(m => m.role === 'user').length;
+
+                  return (
+                    <div key={index} className="message-wrapper">
+                      {isUser && (
+                        <div className="turn-divider">
+                          <span className="turn-divider-label">Round {userTurnNumber}</span>
+                        </div>
+                      )}
+                      <div className={`message message-${message.role}`}>
+                        <div className="message-header">
+                          <span className="message-author">
+                            {isUser ? 'You' : counterpart.split(' · ')[0]}
+                          </span>
+                        </div>
+                        <p>{message.content}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+
+              {busy && state !== 'speaking' && (
+                <div className="thinking-message">
+                  <span /><span /><span />
+                  <small>{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</small>
+                </div>
+              )}
+              <div ref={transcriptEnd} />
+            </div>
+
+            {(error || recorder.error) && (
+              <p className="error-message" role="alert">{error || recorder.error}</p>
+            )}
+
+            <form className="composer" onSubmit={event => { event.preventDefault(); void runTurn('text'); }}>
+              <label className="sr-only" htmlFor="answer">Your answer</label>
+              <textarea
+                id="answer"
+                placeholder={started ? 'Or type your answer…' : 'Start a session to join'}
+                value={draft}
+                onChange={event => setDraft(event.target.value)}
+                disabled={!started || busy || recorder.isRecording}
+                maxLength={4000}
+                rows={2}
+              />
+              <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}>
+                <Send size={16} />
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {/* FOOTER */}
+      <footer className="footer">
+        <span>Conversation Coach</span>
+        <span>Voice by Gradium <span className="footer-divider">/</span> Gemini</span>
+      </footer>
+    </main>
+  );
 }

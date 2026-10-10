@@ -37,6 +37,56 @@ async function providers(page: Page, voice = true) {
   await page.route('**/api/feedback', route => route.fulfill({ json: report }));
 }
 
+test('explicit voice overrides adaptive audio while keeping the sunflower', async ({ page }) => {
+  await providers(page);
+  let speech: { voiceId: string; format: string } | undefined;
+  await page.route('**/api/speak', route => {
+    speech = route.request().postDataJSON();
+    return route.fulfill({ contentType: 'audio/wav', body: shortWav() });
+  });
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'Tell me about your experience.', userTone: 'nervous', tonality: 'reassuring' } }));
+  await page.goto('/');
+  await expect(page.getByLabel('Their voice')).toHaveValue('auto');
+  await page.getByLabel('Their voice').selectOption('lainey');
+  await expect(page.getByText('Lainey · Interviewer', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Sunflower happy to see you' })).toBeVisible();
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await expect(page.getByLabel('Their voice')).toBeDisabled();
+  await page.getByLabel('Your answer').fill('I enjoy building useful tools.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+  expect(speech).toMatchObject({ voiceId: 'lainey', format: 'pcm', tonality: 'reassuring' });
+  await expect(page.getByRole('heading', { name: 'I’m sensing you feel nervous, so I’m adapting a reassuring tone. Lainey is here to train you.' })).toBeVisible();
+  await expect(page.locator('.message-assistant .message-author').last()).toHaveText('Lainey');
+});
+
+test('speech starts from the first PCM chunk before the response completes', async ({ page }) => {
+  await providers(page);
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'Let us discuss your experience.' } }));
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      if (String(input) !== '/api/speak') return originalFetch(input, init);
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(19200));
+          Object.assign(window, { finishSpeechStream: () => controller.close() });
+        }
+      });
+      return new Response(stream, { headers: { 'Content-Type': 'audio/pcm', 'X-Audio-Sample-Rate': '48000' } });
+    };
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await page.getByLabel('Your answer').fill('I build applications.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByText('Let us discuss your experience.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Sunflower is speaking', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Your answer')).toBeDisabled();
+  await page.evaluate(() => (window as unknown as { finishSpeechStream(): void }).finishSpeechStream());
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+});
+
 test('three turns preserve scenario/history, play voice, and produce feedback', async ({ page }) => {
   await providers(page);
   const requests: { scenarioId: string; difficulty: string; messages: { role: string; content: string }[] }[] = [];
@@ -46,6 +96,7 @@ test('three turns preserve scenario/history, play voice, and produce feedback', 
   });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
+  await expect(page.locator('.intro')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/rehearsal-desktop.png', fullPage: true });
   await page.getByRole('radio', { name: /Bazaar negotiation/ }).click();
   await page.getByRole('button', { name: 'Start practising' }).click();
@@ -161,11 +212,11 @@ test('microphone sends a genuine WAV, then transcribes and plays the reply', asy
   await page.goto('/');
   await page.getByRole('button', { name: 'Start practising' }).click();
   await page.getByRole('button', { name: 'Record your answer' }).click();
-  await expect(page.locator('.corner-status').getByText('listening', { exact: true })).toBeVisible();
+  await expect(page.getByText('Listening to you', { exact: true })).toBeVisible();
   // Give the synthetic test microphone enough samples to exercise the worklet.
   await page.waitForTimeout(600);
   await page.getByRole('button', { name: 'Finish & send' }).click();
-  await expect(page.getByText('You: I would like to discuss my responsibilities.')).toBeVisible();
+  await expect(page.getByText('I would like to discuss my responsibilities.', { exact: true })).toBeVisible();
   await expect(page.getByText('What has changed in your role?')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Record your answer' })).toBeEnabled();
   expect(receivedAudio).toBe(true);
@@ -184,10 +235,25 @@ test('failed speech preserves reply and allows a typed next turn', async ({ page
   await expect(page.getByLabel('Your answer')).toBeEnabled();
 });
 
+test('unavailable browser audio still sends the answer and preserves text', async ({ page }) => {
+  await providers(page);
+  await page.addInitScript(() => {
+    window.AudioContext = class { constructor() { throw new Error('Audio unavailable'); } } as unknown as typeof AudioContext;
+  });
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'Your experience sounds relevant.' } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await page.getByLabel('Your answer').fill('I have built several applications.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByText('Your experience sounds relevant.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Audio could not start' })).toBeVisible();
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+});
+
 test('missing Gemini prevents a session instead of inventing answers', async ({ page }) => {
   await page.route('**/api/status', route => route.fulfill({ json: { gemini: false, gradium: false } }));
   await page.goto('/');
-  await expect(page.getByText('Connect Gemini to start practising.')).toBeVisible();
+  await expect(page.getByText('Connect Gemini to start practising.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeDisabled();
 });
 
@@ -203,7 +269,7 @@ test('reset cancels a pending response and prevents stale transcript updates', a
   await page.getByRole('button', { name: 'Start practising' }).click();
   await page.getByLabel('Your answer').fill('Please help me rehearse.');
   await page.getByRole('button', { name: 'Send answer' }).click();
-  await expect(page.getByText('You: Please help me rehearse.')).toBeVisible();
+  await expect(page.getByText('Please help me rehearse.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Reset session' }).click();
   release();
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible();
@@ -232,4 +298,19 @@ test('waiting for microphone permission cannot overlap a typed turn', async ({ p
   await expect(page.getByLabel('Your answer')).toBeDisabled();
   await page.getByRole('button', { name: 'Reset session' }).click();
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
+});
+
+test('studio focus and full stage retain the sunflower, outfit and conversation', async ({ page }) => {
+  await providers(page, false);
+  await page.goto('/');
+  await page.getByRole('radio', { name: 'Flatmate talk: Cosy beanie & mug' }).click();
+  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
+  await expect(page.locator('.studio-grid')).toHaveClass(/sidebar-collapsed/);
+  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'flatmate');
+  await expect(page.locator('.aura-visualizer-canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Maximize stage' }).click();
+  await expect(page.locator('.studio-grid')).toHaveClass(/stage-maximized/);
+  await page.getByRole('button', { name: 'Restore view' }).click();
+  await page.getByRole('button', { name: 'Expand sidebar' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Choose an outfit' })).toBeVisible();
 });
