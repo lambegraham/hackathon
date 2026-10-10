@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
-  AudioLines,
   Check,
   ChevronRight,
   Maximize2,
@@ -33,7 +32,7 @@ async function responseError(response: Response) {
   return typeof body?.error === 'string' ? body.error : 'Something went wrong. Please try again.';
 }
 
-function SoundWave({ active = false, color = 'blue' }: { active?: boolean; color?: 'blue' | 'crimson' | 'emerald' }) {
+function SoundWave({ active = false, color = 'blue' }: { active?: boolean; color?: 'blue' | 'slate' }) {
   return (
     <div className={`sound-wave ${active ? 'active' : ''} sound-wave-${color}`} aria-hidden="true">
       <span /><span /><span /><span /><span /><span /><span />
@@ -275,9 +274,7 @@ export function Coach() {
     ? 'Thinking it through'
     : state === 'speaking'
     ? `${counterpart.split(' · ')[0]} is speaking`
-    : started
-    ? 'Your turn. Take your time.'
-    : 'Ready when you are';
+    : '';
 
   const gridClass = [
     'studio-grid',
@@ -290,21 +287,18 @@ export function Coach() {
       {/* TOPBAR */}
       <header className="topbar">
         <a href="/" className="brand" aria-label="Rehearsal home">
-          <span className="brand-mark"><MessageCircle size={20} /></span>
+          <span className="brand-mark"><MessageCircle size={18} /></span>
           rehearsal<span className="brand-dot">.</span>
         </a>
-        <div className="topbar-center">
-          <span className="topbar-note">A safe space for the conversations that matter.</span>
-        </div>
         <div className="topbar-actions">
-          <span className="preview-tag">Live Rehearsal</span>
+          <span className="preview-tag">Session</span>
         </div>
       </header>
 
       {/* PAGE HEADING */}
       <section className="page-heading">
         <div>
-          <div className="eyebrow">{scenario.title.toUpperCase()} · REHEARSAL</div>
+          <div className="eyebrow">{scenario.title.toUpperCase()}</div>
           <h1>
             {report
               ? 'Take the practice with you.'
@@ -312,15 +306,10 @@ export function Coach() {
               ? 'You’ve got the floor.'
               : 'Big conversation? Start here.'}
           </h1>
-          <p>
-            {report
-              ? 'Practical insights and phrasing suggestions to bring into your real conversation.'
-              : 'Rehearse your answers before the moment arrives. Speak naturally, at your own pace.'}
-          </p>
         </div>
         <div className="session-chip">
           <span />
-          {report ? 'Session complete' : started ? 'Practice in progress' : 'Private practice room'}
+          {report ? 'Session complete' : started ? 'In progress' : 'Ready'}
         </div>
       </section>
 
@@ -341,16 +330,16 @@ export function Coach() {
       {report ? (
         <section className="report-layout">
           <div className="report-card">
-            <div className="eyebrow">YOUR SESSION NOTES</div>
+            <div className="eyebrow">SESSION NOTES</div>
             <h2>A stronger next conversation.</h2>
             <p className="report-summary">{report.summary}</p>
             <div className="feedback-grid">
               <div>
-                <h3><Check size={18} /> What worked</h3>
+                <h3><Check size={17} /> What worked</h3>
                 {report.strengths.map((item, index) => <p key={index}>{item}</p>)}
               </div>
               <div>
-                <h3><Sparkles size={18} /> Try next time</h3>
+                <h3><Sparkles size={17} /> Try next time</h3>
                 {report.improvements.map((item, index) => <p key={index}>{item}</p>)}
               </div>
             </div>
@@ -359,13 +348,12 @@ export function Coach() {
               <blockquote>“{report.suggestedResponse}”</blockquote>
             </div>
             <button className="primary" onClick={reset}>
-              <RotateCcw size={17} /> Practise another conversation
+              <RotateCcw size={16} /> Practise another conversation
             </button>
           </div>
           <aside className="report-side">
             <Avatar state="idle" gender={voice.gender} scenario={scenarioId} />
             <h3>Practice counts.</h3>
-            <p>You don’t need perfect words. You need words that sound like you.</p>
             <span>Session held in this browser only.</span>
           </aside>
         </section>
@@ -374,8 +362,7 @@ export function Coach() {
           {/* LEFT: SCENARIO PANEL */}
           <aside className="scenario-panel">
             <div className="panel-heading">
-              <span>Choose your conversation</span>
-              <span className="small-label">{SCENARIOS.length} scenarios</span>
+              <span>Scenarios</span>
             </div>
             <div className="scenario-list">
               {SCENARIOS.map((item, index) => (
@@ -386,18 +373,18 @@ export function Coach() {
                   onClick={() => setScenarioId(item.id)}
                 >
                   <span className="scenario-symbol">{['↗', '€', '♡', '↔', '+'][index]}</span>
-                  <span>
+                  <span className="scenario-info">
                     <strong>{item.title}</strong>
                     <small>{item.description}</small>
                   </span>
-                  {scenarioId === item.id && <Check size={16} className="scenario-check" />}
+                  {scenarioId === item.id && <Check size={15} className="scenario-check" />}
                 </button>
               ))}
             </div>
 
             {scenarioId === 'custom' && (
               <label className="custom-label">
-                What would you like to practise?
+                Custom scenario
                 <textarea
                   maxLength={2000}
                   disabled={started}
@@ -416,11 +403,10 @@ export function Coach() {
                 disabled={started}
                 onChange={event => setDifficulty(event.target.value as Difficulty)}
               >
-                <option value="friendly">Friendly · a gentle start</option>
-                <option value="neutral">Neutral · keep it realistic</option>
-                <option value="challenging">Challenging · push yourself</option>
+                <option value="friendly">Friendly</option>
+                <option value="neutral">Neutral</option>
+                <option value="challenging">Challenging</option>
               </select>
-              <p>You set the pace. Try a harder approach when you’re ready.</p>
 
               <label htmlFor="voice">Their voice</label>
               <select
@@ -439,38 +425,32 @@ export function Coach() {
           {/* CENTER: REHEARSAL STAGE */}
           <section className="stage-panel">
             <div className="stage-top">
-              <div className="stage-top-left">
-                <button
-                  className="stage-tool-btn"
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  title={sidebarCollapsed ? "Show scenarios" : "Hide scenarios"}
-                >
-                  {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-                  <span>{sidebarCollapsed ? "Scenarios" : "Focus"}</span>
-                </button>
-              </div>
+              <button
+                className="stage-tool-btn"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                title={sidebarCollapsed ? "Show scenarios" : "Hide scenarios"}
+              >
+                {sidebarCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+                <span>{sidebarCollapsed ? "Scenarios" : "Focus"}</span>
+              </button>
 
-              <div className="stage-top-center">
-                <span className="difficulty-badge">{difficulty}</span>
-              </div>
+              <span className="difficulty-badge">{difficulty}</span>
 
-              <div className="stage-top-right">
-                <button
-                  className="stage-tool-btn stage-tool-icon"
-                  onClick={() => setStageMaximized(!stageMaximized)}
-                  aria-label={stageMaximized ? "Restore view" : "Maximize stage"}
-                  title={stageMaximized ? "Exit full view" : "Full stage"}
-                >
-                  {stageMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
-              </div>
+              <button
+                className="stage-tool-btn stage-tool-icon"
+                onClick={() => setStageMaximized(!stageMaximized)}
+                aria-label={stageMaximized ? "Restore view" : "Maximize stage"}
+                title={stageMaximized ? "Exit full view" : "Full stage"}
+              >
+                {stageMaximized ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              </button>
             </div>
 
             <div className="avatar-stage">
               <div className="stage-orbit" />
               <Avatar state={avatarState} gender={voice.gender} scenario={scenarioId} />
-              
+
               <div className="stage-persona">
                 <span className="counterpart-name">{counterpart}</span>
                 {avatarState === 'speaking' && (
@@ -478,66 +458,63 @@ export function Coach() {
                 )}
               </div>
 
-              <div className={`state-indicator state-${avatarState}`}>
-                <span />
-                {statusText}
-              </div>
+              {statusText && (
+                <div className={`state-indicator state-${avatarState}`}>
+                  <span />
+                  {statusText}
+                </div>
+              )}
             </div>
 
             <div className="stage-bottom">
               {!started ? (
-                <>
-                  <h2>Ready when you are.</h2>
-                  <p>Your counterpart will stay in character.<br />Get real-time voice feedback when you finish.</p>
+                <div className="stage-action-center">
                   <button
                     className="primary start-button"
                     disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())}
                     onClick={begin}
                   >
-                    Start practising <ArrowRight size={18} />
+                    Start practising <ArrowRight size={17} />
                   </button>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="stage-controls-area">
+                  {/* Clean Horizontal Status Row in Whitespace (No Overlap, No Red Numbers) */}
+                  {recorder.isRecording && (
+                    <div className="recording-status-row" aria-live="polite">
+                      <span className="rec-pulse-dot" />
+                      <span className="rec-time-text">
+                        {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:
+                        {String(recordingSeconds % 60).padStart(2, '0')} / 01:00
+                      </span>
+                      <SoundWave active={true} color="slate" />
+                    </div>
+                  )}
+
                   <div className="record-container">
                     <button
                       className={`record-button ${recorder.isRecording ? 'recording' : ''}`}
                       disabled={busy || !setup?.gradium}
                       onClick={toggleRecording}
                     >
-                      {recorder.isRecording ? <Square size={20} fill="currentColor" /> : <Mic size={22} />}
+                      {recorder.isRecording ? <Square size={18} fill="currentColor" /> : <Mic size={20} />}
                       <span>{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span>
                     </button>
-                    {recorder.isRecording && (
-                      <div className="record-live-indicator">
-                        <SoundWave active={true} color="crimson" />
-                        <span className="recording-timer">{recordingSeconds}s / 60s</span>
-                      </div>
-                    )}
                   </div>
-
-                  <p className="record-help">
-                    {recorder.isRecording
-                      ? 'Speak into your microphone. Click again when done.'
-                      : 'Speak naturally, or type your answer in the transcript panel.'}
-                  </p>
 
                   <div className="session-actions">
                     <button
                       disabled={busy || !hasUserTurn || recorder.isRecording}
                       onClick={finish}
                     >
-                      End session & get feedback <ChevronRight size={15} />
+                      End session & get feedback <ChevronRight size={14} />
                     </button>
                     <button className="reset-button" onClick={reset} aria-label="Reset session">
-                      <RotateCcw size={16} />
+                      <RotateCcw size={15} />
                     </button>
                   </div>
-                </>
+                </div>
               )}
-              <p className="privacy-note">
-                Private in-browser session · Gradium Voice & Gemini Intelligence
-              </p>
             </div>
           </section>
 
@@ -545,7 +522,7 @@ export function Coach() {
           <section className="transcript-panel">
             <div className="panel-heading">
               <div className="transcript-title">
-                <Volume2 size={16} />
+                <Volume2 size={15} />
                 <span>Conversation</span>
               </div>
               <span className="turn-count-badge">
@@ -556,18 +533,12 @@ export function Coach() {
             <div className="transcript" aria-live="polite" aria-relevant="additions">
               {messages.length === 0 ? (
                 <div className="empty-transcript">
-                  <span><MessageCircle size={26} /></span>
+                  <span><MessageCircle size={24} /></span>
                   <h3>The first words are yours.</h3>
-                  <p>Your conversation transcript will appear here as you speak or type.</p>
-                  <div className="tip">
-                    <strong>Coaching note</strong>
-                    <p>Answer as you would in real life. Focus on clarity over perfection.</p>
-                  </div>
                 </div>
               ) : (
                 messages.map((message, index) => {
                   const isUser = message.role === 'user';
-                  // Calculate user turn number
                   const userTurnNumber = messages.slice(0, index + 1).filter(m => m.role === 'user').length;
 
                   return (
@@ -607,7 +578,7 @@ export function Coach() {
               <label className="sr-only" htmlFor="answer">Your answer</label>
               <textarea
                 id="answer"
-                placeholder={started ? 'Or type your answer here…' : 'Start a session to join the conversation'}
+                placeholder={started ? 'Or type your answer…' : 'Start a session to join'}
                 value={draft}
                 onChange={event => setDraft(event.target.value)}
                 disabled={!started || busy || recorder.isRecording}
@@ -615,18 +586,17 @@ export function Coach() {
                 rows={2}
               />
               <button aria-label="Send answer" disabled={!started || busy || recorder.isRecording || !draft.trim()}>
-                <Send size={17} />
+                <Send size={16} />
               </button>
             </form>
-            <div className="composer-note">Press Enter or click send</div>
           </section>
         </div>
       )}
 
       {/* FOOTER */}
       <footer className="footer">
-        <span>Conversation Coach · Rehearsal Studio</span>
-        <span>Voice by Gradium <span className="footer-divider">/</span> Intelligence by Gemini</span>
+        <span>Conversation Coach</span>
+        <span>Voice by Gradium <span className="footer-divider">/</span> Gemini</span>
       </footer>
     </main>
   );
