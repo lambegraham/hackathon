@@ -1,0 +1,14 @@
+{
+  "tool_use_id": "01a125c5-d075-7c30-8b58-258d845b6d13",
+  "agent_id": "01a125c5-d075-7c30-8b58-258d845b6d13",
+  "subagent_type": "reviewer",
+  "token_usage": {
+    "input_tokens": 105044,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 766336,
+    "output_tokens": 6594,
+    "api_call_count": 15
+  },
+  "started_at": "2026-10-10T14:25:33.340528+02:00",
+  "completed_at": "2026-10-10T14:28:33.830592+02:00"
+}
