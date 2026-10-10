@@ -7,5 +7,6 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  // suppressHydrationWarning: browser extensions (e.g. Grammarly) inject attributes on <body>.
+  return <html lang="en"><body suppressHydrationWarning>{children}</body></html>;
 }
