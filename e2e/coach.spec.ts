@@ -164,7 +164,7 @@ test('intro shows Got credits? :) and then reveals the sunflower', async ({ page
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
 });
 
-test('wardrobe dresses the sunflower and picks the scenario to train', async ({ page }) => {
+test('the scenario dresses the sunflower for the call', async ({ page }) => {
   await providers(page, false);
   const requests: { scenarioId: string }[] = [];
   await page.route('**/api/converse', route => {
@@ -172,21 +172,13 @@ test('wardrobe dresses the sunflower and picks the scenario to train', async ({ 
     return route.fulfill({ json: { reply: 'Hello? Who is this?' } });
   });
   await page.goto('/');
-  const rail = page.getByRole('radiogroup', { name: 'Choose an outfit' });
-  await expect(rail.getByRole('radio')).toHaveCount(5);
-  await expect(page.getByRole('radio', { name: 'Job interview: Suit & tie' })).toHaveAttribute('aria-checked', 'true');
+  const scenario = page.getByLabel('Scenario');
+  await expect(scenario).toHaveValue('interview');
   await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'interview');
-  await page.getByRole('button', { name: 'Next outfit' }).click();
+  await scenario.selectOption('relationship');
   await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'relationship');
-  await expect(page.locator('.wardrobe-text')).toContainText('Relationship breakup');
-  await expect(page.locator('.wardrobe-text')).toContainText('Handbag & pearls');
-  await page.getByRole('radio', { name: /Relationship breakup/ }).press('ArrowRight');
-  await expect(page.getByRole('radio', { name: 'Flatmate talk: Cosy beanie & mug' })).toBeFocused();
-  await page.getByRole('button', { name: 'Previous outfit' }).click();
-  await page.getByRole('button', { name: 'Previous outfit' }).click();
-  await page.getByRole('button', { name: 'Previous outfit' }).click();
-  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'bazaar');
-  await page.getByRole('button', { name: 'Previous outfit' }).click();
+  await expect(page.getByRole('heading', { name: 'Relationship breakup' })).toBeVisible();
+  await scenario.selectOption('coldcall');
   await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'coldcall');
   await page.locator('.flower').screenshot({ path: 'test-results/sunflower-coldcall.png' });
   await page.getByRole('button', { name: 'Start practising' }).click();
@@ -303,17 +295,11 @@ test('waiting for microphone permission cannot overlap a typed turn', async ({ p
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
 });
 
-test('studio focus and full stage retain the sunflower, outfit and conversation', async ({ page }) => {
+test('the call keeps the sunflower and outfit when the scenario changes', async ({ page }) => {
   await providers(page, false);
   await page.goto('/');
-  await page.getByRole('radio', { name: 'Flatmate talk: Cosy beanie & mug' }).click();
-  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
-  await expect(page.locator('.studio-grid')).toHaveClass(/sidebar-collapsed/);
-  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'flatmate');
-  await expect(page.locator('.aura-visualizer-canvas')).toBeVisible();
-  await page.getByRole('button', { name: 'Maximize stage' }).click();
-  await expect(page.locator('.studio-grid')).toHaveClass(/stage-maximized/);
-  await page.getByRole('button', { name: 'Restore view' }).click();
-  await page.getByRole('button', { name: 'Expand sidebar' }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Choose an outfit' })).toBeVisible();
+  await page.getByLabel('Scenario').selectOption('flatmate');
+  await expect(page.locator('.call-frame .flower')).toHaveAttribute('data-outfit', 'flatmate');
+  await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use camera' })).toBeVisible();
 });

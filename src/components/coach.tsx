@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AudioLines, ClipboardList, MessageSquare, Mic, RotateCcw, Send, Square, Video, Volume2 } from 'lucide-react';
+import { AudioLines, ClipboardList, Mic, Phone, RotateCcw, Send, Square, Video, Volume2 } from 'lucide-react';
 import { createDuplexSession } from '@/lib/duplex-session';
 import { createStreamingPlayer } from '@/lib/streaming-audio';
 import { VOICES, type VoiceId } from '@/lib/voices';
@@ -15,7 +15,7 @@ import { SessionReport } from './session-report';
 import { ProfileDashboard } from './profile-dashboard';
 import { Sunflower } from './sunflower';
 import { OUTFITS } from './outfits';
-import { tonalityById } from '@/lib/tonality';
+import { tonalityById, userToneLabel } from '@/lib/tonality';
 import './profile.css';
 
 type Difficulty = 'friendly' | 'neutral' | 'challenging';
@@ -366,9 +366,11 @@ export function Coach() {
   const statusText = liveStarting || micStarting ? 'Connecting your microphone' : preparingVoice ? 'Preparing voice' : state === 'thinking' ? 'Thinking it through' : state === 'speaking' ? `${counterpart.split(' · ')[0]} is speaking` : recorder.isRecording ? 'Listening to you' : liveActive ? 'Listening. You can interrupt anytime.' : started ? 'Your turn. Take your time.' : 'Ready when you are';
   const assistantLine = [...messages].reverse().find(message => message.role === 'assistant')?.content;
   const yourLine = [...messages].reverse().find(message => message.role === 'user')?.content;
-  const advice = report ?? savedSessions[0]?.report;
+  const feeling = tones.userTone && userToneLabel(tones.userTone).toLowerCase();
+  const feelingLine = feeling && tone
+    ? `I’m sensing you feel ${feeling}, so I’m adapting ${/^[aeiou]/i.test(tone.label) ? 'an' : 'a'} ${tone.label.toLowerCase()} tone. ${voice?.name ?? tone.voiceName} is here to train you.`
+    : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.' : null;
   const shortName: Record<string, string> = { interview: 'Job interview', raise: 'Ask for a raise', relationship: 'Relationship', feedback: 'Feedback', flatmate: 'Flatmate', coldcall: 'Cold call', bazaar: 'Bazaar', custom: 'Your own' };
-  const bubbleLine = assistantLine ?? 'Ready when you are.';
   const keyMissing = setupFailed || (setup !== null && !setup.gemini);
   const clock = `${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(recordingSeconds % 60).padStart(2, '0')}`;
   const showLive = recorder.isRecording || liveActive;
@@ -384,20 +386,9 @@ export function Coach() {
         </div>
       ) : (
         <>
-          <aside className="call-rail">
-            <a href="/" className="call-brand">AnyResets</a>
-            <button className="call-nav call-nav-on" type="button" aria-current="page">
-              <span className="call-nav-icon"><MessageSquare size={18} /></span>
-              <span>Conversation</span>
-            </button>
-            <button className="call-nav" type="button" aria-label="My profile" onClick={openProfile} disabled={started && !report}>
-              <span className="call-nav-icon"><ClipboardList size={18} /></span>
-              <span>Feedback</span>
-            </button>
-          </aside>
-
           <section className="call-center">
             <header className="call-top">
+              <a href="/" className="call-brand">AnyResets</a>
               <div className="call-pills">
                 <select className="call-pill" aria-label="Scenario" value={scenarioId} disabled={started} onChange={event => { setScenarioId(event.target.value as ScenarioId); setPracticeQuestion(''); }}>
                   {SCENARIOS.map(item => <option key={item.id} value={item.id}>{shortName[item.id] ?? item.title}</option>)}
@@ -431,10 +422,14 @@ export function Coach() {
                   </button>
                 )}
                 {started && (
-                  <button className="call-over" type="button" onClick={reset} aria-label="Start over"><RotateCcw size={15} /></button>
+                  <button className="call-over" type="button" onClick={reset} aria-label="Reset session"><RotateCcw size={15} /></button>
                 )}
-                <button className="call-end" type="button" aria-label="End session" disabled={!started || busy || !hasUserTurn || recorder.isRecording} onClick={finish}>End</button>
+                <button className="call-nav" type="button" aria-label="My profile" onClick={openProfile} disabled={started && !report}>
+                  <ClipboardList size={16} />
+                  <span>Feedback</span>
+                </button>
               </div>
+              <p className="call-status" aria-live="polite">{statusText}</p>
             </header>
 
             <div className="call-frame">
@@ -445,11 +440,12 @@ export function Coach() {
               </div>
               <Sunflower state={avatarState} mood={tones.userTone ?? 'happy'} outfit={outfit} lookAt={camera.lookAt} frame="chest" />
               <video ref={camera.videoRef} className={`flower-self-view${camera.on ? ' on' : ''}`} playsInline muted aria-hidden={!camera.on} aria-label={camera.on ? 'Your camera. Stop camera.' : undefined} onClick={() => { if (camera.on) camera.stop(); }} />
-              <div className="call-bubble">
-                <Volume2 size={15} aria-hidden="true" />
-                <p>{bubbleLine}</p>
-              </div>
-              <p className="sr-only" aria-live="polite">{statusText}</p>
+              {assistantLine && (
+                <div className="call-bubble">
+                  <Volume2 size={15} aria-hidden="true" />
+                  <p>{assistantLine}</p>
+                </div>
+              )}
               {busy && state !== 'speaking' && !assistantLine && (
                 <p className="call-wait">{preparingVoice ? 'Preparing voice' : hasUserTurn ? 'Preparing a response' : 'Working on it'}</p>
               )}
@@ -466,21 +462,33 @@ export function Coach() {
                 </form>
               )}
               <div className="call-dock">
-                <button className={`call-orb${recorder.isRecording ? ' call-orb-hot' : ''}`} type="button" aria-label={recorder.isRecording ? 'Finish and send' : 'Record your answer'} disabled={!started || busy || liveActive || liveStarting || !setup?.gradium} onClick={toggleRecording}>
-                  {recorder.isRecording ? <Square size={16} fill="currentColor" /> : <Mic size={20} />}
-                </button>
+                <div className="call-dock-item">
+                  <button className={`call-orb${recorder.isRecording ? ' call-orb-hot' : ''}`} type="button" aria-label={recorder.isRecording ? 'Finish & send' : 'Record your answer'} disabled={!started || busy || liveActive || liveStarting || !setup?.gradium} onClick={toggleRecording}>
+                    {recorder.isRecording ? <Square size={16} fill="currentColor" /> : <Mic size={20} />}
+                  </button>
+                  <span>Record</span>
+                </div>
                 {!started ? (
-                  <button className="call-orb call-orb-hangup" type="button" aria-label="Start practising" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>
-                    <Square size={16} fill="currentColor" />
-                  </button>
+                  <div className="call-dock-item">
+                    <button className="call-orb call-orb-go" type="button" aria-label="Start practising" disabled={!setup?.gemini || (scenarioId === 'custom' && !customScenario.trim())} onClick={begin}>
+                      <Phone size={22} />
+                    </button>
+                    <span>Start</span>
+                  </div>
                 ) : (
-                  <button className="call-orb call-orb-hangup" type="button" aria-label="End session" disabled={!!report || busy || !hasUserTurn || recorder.isRecording} onClick={finish}>
-                    <Square size={16} fill="currentColor" />
-                  </button>
+                  <div className="call-dock-item">
+                    <button className="call-orb call-orb-hangup" type="button" aria-label="End session & get feedback" disabled={!!report || busy || !hasUserTurn || recorder.isRecording} onClick={finish}>
+                      <Phone size={22} />
+                    </button>
+                    <span>End</span>
+                  </div>
                 )}
-                <button className={`call-orb${camera.on ? ' call-orb-on' : ''}`} type="button" aria-pressed={camera.on} aria-label={camera.on ? 'Stop camera' : 'Use camera'} onClick={() => camera.on ? camera.stop() : void camera.start()}>
-                  <Video size={20} />
-                </button>
+                <div className="call-dock-item">
+                  <button className={`call-orb${camera.on ? ' call-orb-on' : ''}`} type="button" aria-pressed={camera.on} aria-label={camera.on ? 'Stop camera' : 'Use camera'} onClick={() => camera.on ? camera.stop() : void camera.start()}>
+                    <Video size={20} />
+                  </button>
+                  <span>Camera</span>
+                </div>
               </div>
             </div>
             <div className="sr-only" aria-live="polite">
@@ -490,12 +498,13 @@ export function Coach() {
           </section>
 
           <aside className="call-advice">
-            <h2>Live</h2>
-            <p>Advice shows after this practice.</p>
-            {advice && advice.improvements.length > 0 && (
+            <h2>{feelingLine ?? scenario.title}</h2>
+            {report && report.improvements.length > 0 ? (
               <ul>
-                {advice.improvements.slice(0, 2).map((item, index) => <li key={index}>{item}</li>)}
+                {report.improvements.slice(0, 2).map((item, index) => <li key={index}>{item}</li>)}
               </ul>
+            ) : (
+              <p>{scenario.description}</p>
             )}
             {keyMissing && (
               <p className="call-key" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Add GEMINI_API_KEY, then restart.'}</p>
