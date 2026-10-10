@@ -29,6 +29,14 @@ Select **Ask for a raise**, set the difficulty, and start practice. Give three s
 
 The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The avatar has idle, listening, thinking and speaking states.
 
+## Voice tonality
+
+Each turn, Gemini classifies the tone of the wording of your latest message (`confident`, `calm`, `enthusiastic`, `neutral`, `hesitant`, `nervous`, `defensive`, `frustrated`, `upset`) and picks a tonality for its reply. The page shows both, for example "You sound nervous → Alex answers reassuring · Hadley’s voice". **Their voice tone** switches between **Auto · match my tone** and a fixed tonality, which the server enforces. Tone is judged from words only; Gradium STT returns text, not prosody.
+
+Gradium TTS has no tone parameter: tonality is a property of the voice (its `emotion` tag in Studio). Each tonality maps to a catalog en-US voice in `src/lib/tonality.ts`: calm (Holly), reassuring (Hadley), empathic (Drew), friendly (Wendy), confident (Harrison), excited (Quinn), neutral (Kelsey). Override any of them with `GRADIUM_VOICE_<TONALITY>`, for example `GRADIUM_VOICE_CALM`. Speech without a tonality still uses `GRADIUM_VOICE_ID`.
+
+Conversation turns use `thinkingLevel: LOW`. Gemini 3 thinking tokens count against `maxOutputTokens`; at the default level a short turn could spend its 500-token budget thinking and return truncated JSON.
+
 ## Architecture and ownership
 
 | Area | Files | Team responsibility |
@@ -47,11 +55,11 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | --- | --- | --- |
 | `GET /api/status` | None | Provider key presence booleans; never keys |
 | `POST /api/transcribe` | Raw `audio/wav` | `{ text }` |
-| `POST /api/converse` | Session and message history | `{ reply }` |
-| `POST /api/speak` | `{ text }` | `audio/wav` bytes |
+| `POST /api/converse` | Session and message history | `{ reply, userTone, tonality }` |
+| `POST /api/speak` | `{ text, tonality? }` | `audio/wav` bytes |
 | `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse }` |
 
-Session input: `scenarioId`, `difficulty`, optional `customScenario`, and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
+Session input: `scenarioId`, `difficulty`, optional `customScenario`, optional `tonality` (`auto` by default), and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
 
 Transcripts live in browser memory only. The app does not save recordings, accounts or sessions. Feedback concerns the words spoken; it does not diagnose personality or mood. Provider retention policies still apply.
 

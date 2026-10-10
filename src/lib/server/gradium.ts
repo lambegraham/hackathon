@@ -1,3 +1,5 @@
+import type { Tonality } from '@/lib/contracts';
+import { tonalityById } from '@/lib/tonality';
 import { ApiError, requireKey } from './http';
 export function validateWav(bytes: Uint8Array, maxSeconds = 60) {
     const invalid = () => new ApiError(400, 'Send a valid PCM WAV recording of 60 seconds or less.');
@@ -98,10 +100,15 @@ export async function transcribe(bytes: Uint8Array) {
         return { text };
     });
 }
-export async function speak(text: string) {
+export function voiceFor(tonality?: Tonality) {
+    if (!tonality)
+        return process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ';
+    return process.env[`GRADIUM_VOICE_${tonality.toUpperCase()}`] || tonalityById(tonality).voiceId;
+}
+export async function speak(text: string, tonality?: Tonality) {
     return await gradium('tts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-            text, voice_id: process.env.GRADIUM_VOICE_ID || 'YTpq7expH9539ERJ', output_format: 'wav', only_audio: true
+            text, voice_id: voiceFor(tonality), output_format: 'wav', only_audio: true
         })
     }, async (response) => {
         const bytes = finalizeStreamingWav(await boundedResponse(response, 16 * 1024 * 1024));

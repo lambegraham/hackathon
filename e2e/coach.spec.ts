@@ -71,6 +71,43 @@ test('three turns preserve scenario/history, play voice, and produce feedback', 
   await expect(page.getByText('I took ownership of onboarding.', { exact: true })).toHaveCount(0);
 });
 
+test('detected tone is displayed and drives the reply voice, or a fixed tone is enforced', async ({ page }) => {
+  await providers(page);
+  const conversed: { tonality?: string }[] = [];
+  const spoken: { text: string; tonality?: string }[] = [];
+  await page.route('**/api/speak', route => {
+    spoken.push(route.request().postDataJSON());
+    return route.fulfill({ contentType: 'audio/wav', body: shortWav() });
+  });
+  await page.route('**/api/converse', route => {
+    const body = route.request().postDataJSON();
+    conversed.push(body);
+    const tonality = body.tonality === 'auto' ? 'reassuring' : body.tonality;
+    return route.fulfill({ json: { reply: `Take your time. Turn ${conversed.length}.`, userTone: 'nervous', tonality } });
+  });
+  await page.goto('/');
+  await expect(page.getByLabel('Their voice tone')).toHaveValue('auto');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await expect(page.getByText('Tone: matches yours after your first answer')).toBeVisible();
+  await page.getByLabel('Your answer').fill('Um, I think maybe I deserve more?');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByText('Take your time. Turn 1.', { exact: true })).toBeVisible();
+  const readout = page.locator('.tone-readout');
+  await expect(readout).toContainText('You sound nervous');
+  await expect(readout).toContainText('answers reassuring · Hadley’s voice');
+  await expect(page.getByText('· sounds nervous')).toBeVisible();
+  await expect(page.getByText('· reassuring voice')).toBeVisible();
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+  await page.getByLabel('Their voice tone').selectOption('confident');
+  await page.getByLabel('Your answer').fill('I led onboarding.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByText('Take your time. Turn 2.', { exact: true })).toBeVisible();
+  await expect(readout).toContainText('answers confident · Harrison’s voice');
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+  expect(conversed.map(body => body.tonality)).toEqual(['auto', 'confident']);
+  expect(spoken.map(body => body.tonality)).toEqual(['reassuring', 'confident']);
+});
+
 test('microphone sends a genuine WAV, then transcribes and plays the reply', async ({ page }) => {
   await providers(page);
   let receivedAudio = false;

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const generateContent = vi.hoisted(() => vi.fn());
 vi.mock('@google/genai', () => ({ GoogleGenAI: class {
         models = { generateContent };
-    } }));
+    }, ThinkingLevel: { LOW: 'LOW' } }));
 import { POST as converse } from '@/app/api/converse/route';
 import { POST as feedback } from '@/app/api/feedback/route';
 import { POST as transcribe } from '@/app/api/transcribe/route';
@@ -15,6 +15,7 @@ const input = {
             role: 'user', content: 'I built a project.'
         }]
 };
+const turn = (reply: string, extra: Record<string, unknown> = {}) => ({ text: JSON.stringify({ reply, userTone: 'neutral', tonality: 'friendly', ...extra }) });
 const request = (body: unknown, headers: Record<string, string> = {}) => new Request('http://localhost/api/converse', {
     method: 'POST', headers: {
         'content-type': 'application/json', ...headers
@@ -69,7 +70,7 @@ describe('coach API', () => {
     afterEach(() => vi.unstubAllEnvs());
     it.each([undefined, 'event-model-override'])('uses the upgraded default or configured model (%s) for conversation and feedback', async (model) => {
         vi.stubEnv('GEMINI_MODEL', model);
-        generateContent.mockResolvedValueOnce({ text: 'Tell me more.' }).mockResolvedValueOnce({ text: JSON.stringify({
+        generateContent.mockResolvedValueOnce(turn('Tell me more.')).mockResolvedValueOnce({ text: JSON.stringify({
             summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.'
         }) });
         expect((await converse(request(input))).status).toBe(200);
@@ -78,13 +79,30 @@ describe('coach API', () => {
             expect(call.model).toBe(model ?? 'gemini-3.8-flash');
         }
     });
-    it('passes full history to Gemini and returns reply', async () => {
-        generateContent.mockResolvedValue({ text: 'What was your contribution?' });
+    it('passes full history to Gemini and returns reply with detected tones', async () => {
+        generateContent.mockResolvedValue(turn('What was your contribution?', { userTone: 'nervous', tonality: 'reassuring' }));
         const response = await converse(request(input));
-        expect(await response.json()).toEqual({ reply: 'What was your contribution?' });
+        expect(await response.json()).toEqual({ reply: 'What was your contribution?', userTone: 'nervous', tonality: 'reassuring' });
         expect(generateContent.mock.calls[0][0].contents).toEqual([{
                 role: 'user', parts: [{ text: 'I built a project.' }]
             }]);
+        expect(generateContent.mock.calls[0][0].config.responseJsonSchema.required).toEqual(['reply', 'userTone', 'tonality']);
+        // Default thinking can exhaust the token budget and truncate the JSON.
+        expect(generateContent.mock.calls[0][0].config.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
+    });
+    it('lets the model choose tonality in auto mode but enforces a fixed one', async () => {
+        generateContent.mockResolvedValue(turn('Go on.', { tonality: 'excited' }));
+        expect((await (await converse(request({ ...input, tonality: 'auto' }))).json()).tonality).toBe('excited');
+        expect(generateContent.mock.calls[0][0].config.systemInstruction).toContain('Choose the tonality');
+        expect((await (await converse(request({ ...input, tonality: 'calm' }))).json()).tonality).toBe('calm');
+        expect(generateContent.mock.calls[1][0].config.systemInstruction).toContain('Use the tonality "calm"');
+        expect((await converse(request({ ...input, tonality: 'angry' }))).status).toBe(400);
+    });
+    it('rejects replies with unknown tones or without JSON', async () => {
+        generateContent.mockResolvedValue(turn('Hi', { userTone: 'sarcastic' }));
+        expect((await converse(request(input))).status).toBe(502);
+        generateContent.mockResolvedValue({ text: 'Plain text reply' });
+        expect((await converse(request(input))).status).toBe(502);
     });
     it('rejects invalid scenario and overlong history', async () => {
         expect((await converse(request({
@@ -101,7 +119,7 @@ describe('coach API', () => {
         expect(generateContent).not.toHaveBeenCalled();
     });
     it('accepts the browser host when Next normalizes loopback to localhost', async () => {
-        generateContent.mockResolvedValue({ text: 'Tell me more.' });
+        generateContent.mockResolvedValue(turn('Tell me more.'));
         const r = new Request('http://localhost:3000/api/converse', {
             method: 'POST', headers: {
                 'content-type': 'application/json', host: '127.0.0.1:3000',
@@ -173,6 +191,18 @@ describe('coach API', () => {
         fetchMock.mockResolvedValue(new Response('not audio'));
         expect((await speak(request({ text: 'Hello' }))).status).toBe(502);
     });
+    it('picks the Gradium voice for the tonality, with env overrides', async () => {
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(wav()));
+        const voice = (i: number) => JSON.parse(String(fetchMock.mock.calls[i][1]?.body)).voice_id;
+        await speak(request({ text: 'Hello' }));
+        expect(voice(0)).toBe('YTpq7expH9539ERJ');
+        await speak(request({ text: 'Hello', tonality: 'calm' }));
+        expect(voice(1)).toBe('7c5UOKm7AiBgJADg');
+        vi.stubEnv('GRADIUM_VOICE_CALM', 'my-studio-voice');
+        await speak(request({ text: 'Hello', tonality: 'calm' }));
+        expect(voice(2)).toBe('my-studio-voice');
+        expect((await speak(request({ text: 'Hello', tonality: 'angry' }))).status).toBe(400);
+    });
     it('finalizes Gradium streaming WAV lengths without accepting them as uploads', async () => {
         const bytes = wav();
         const view = new DataView(bytes.buffer);
@@ -194,7 +224,7 @@ describe('coach API', () => {
             }, {
                 role: 'assistant', content: 'Tell me more.'
             }];
-        generateContent.mockResolvedValue({ text: 'Hello' });
+        generateContent.mockResolvedValue(turn('Hello'));
         expect((await converse(request({
             ...input, messages
         }))).status).toBe(400);
@@ -219,7 +249,7 @@ describe('coach API', () => {
     it('rejects empty or overlong model replies', async () => {
         generateContent.mockResolvedValue({ text: '' });
         expect((await converse(request(input))).status).toBe(502);
-        generateContent.mockResolvedValue({ text: 'a'.repeat(2001) });
+        generateContent.mockResolvedValue(turn('a'.repeat(2001)));
         expect((await converse(request(input))).status).toBe(502);
     });
     it('rejects audio MIME mismatch, missing speech and upstream HTTP failures', async () => {
@@ -238,7 +268,7 @@ describe('coach API', () => {
         expect(await (await status()).json()).toEqual({
             gemini: true, gradium: true
         });
-        generateContent.mockResolvedValue({ text: 'Hello' });
+        generateContent.mockResolvedValue(turn('Hello'));
         for (let i = 0; i < 60; i++)
             await converse(request(input));
         expect((await converse(request(input))).status).toBe(429);
