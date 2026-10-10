@@ -1,0 +1,9 @@
+check whats in the repo so far and how to run it
+
+---
+
+what does entire have access to and how does it work?
+
+---
+
+Create a file named hello-entire.md with a short note explaining that this is my first Entire checkpoint.
