@@ -632,7 +632,6 @@ details>summary {
   .progress-quotes {grid-template-columns:1fr;gap:0}
 }
 
-.live-transcript { border: 1px dashed #9aafff; }
 .transcript-caret { display: inline-block; width: 2px; height: 1em; margin-left: 4px; background: #254ee8; vertical-align: text-bottom; }
 
 .speech-report {margin-top:24px}

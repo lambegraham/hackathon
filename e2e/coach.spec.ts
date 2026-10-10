@@ -37,6 +37,60 @@ async function providers(page: Page, voice = true) {
   await page.route('**/api/feedback', route => route.fulfill({ json: report }));
 }
 
+test('speaks the opening message and every subsequent reply', async ({ page }) => {
+  await providers(page);
+  const spoken: string[] = [];
+  await page.route('**/api/speak', route => {
+    spoken.push(route.request().postDataJSON().text);
+    return route.fulfill({ contentType: 'audio/wav', body: shortWav() });
+  });
+  await page.route('**/api/converse', route => route.fulfill({ json: { reply: 'What happened next?' } }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  const opening = await page.locator('.message-assistant p').first().textContent();
+  await expect.poll(() => spoken).toEqual([opening]);
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+  await page.getByLabel('Your answer').fill('I built a tool.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect.poll(() => spoken).toEqual([opening, 'What happened next?']);
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+});
+
+test('reset cancels pending opening audio and leaves a fresh session usable', async ({ page }) => {
+  await providers(page);
+  await page.route('**/api/speak', async route => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await route.fulfill({ status: 502, json: { error: 'Late speech failure.' } }).catch(() => {});
+  });
+  await page.goto('/');
+  const pending = page.waitForRequest('**/api/speak');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await pending;
+  await page.getByRole('button', { name: 'Reset session' }).click();
+  await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
+  await expect(page.locator('.message')).toHaveCount(0);
+  await expect(page.locator('.error-message')).toHaveCount(0);
+});
+
+test('voice controls stack helper text below the primary action on desktop and mobile', async ({ page }) => {
+  await providers(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  const live = page.getByRole('button', { name: 'Start live voice' });
+  await expect(live).toBeEnabled();
+  await expect(page.locator('.intro')).toHaveCount(0);
+  for (const width of [1310, 375]) {
+    await page.setViewportSize({ width, height: 954 });
+    const button = (await live.boundingBox())!;
+    const help = (await page.locator('#live-voice-help').boundingBox())!;
+    expect(help.y).toBeGreaterThanOrEqual(button.y + button.height);
+    expect(button.x).toBeGreaterThanOrEqual(0);
+    expect(button.x + button.width).toBeLessThanOrEqual(width);
+    await expect(page.getByRole('button', { name: 'Record your answer' })).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await page.screenshot({ path: `/private/tmp/voice-controls-${width}.png`, fullPage: true });
+  }
+});
+
 test('explicit voice overrides adaptive audio while keeping the sunflower', async ({ page }) => {
   await providers(page);
   let speech: { voiceId: string; format: string } | undefined;
@@ -66,7 +120,7 @@ test('speech starts from the first PCM chunk before the response completes', asy
   await page.addInitScript(() => {
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (input, init) => {
-      if (String(input) !== '/api/speak') return originalFetch(input, init);
+      if (String(input) !== '/api/speak' || JSON.parse(String(init?.body)).text !== 'Let us discuss your experience.') return originalFetch(input, init);
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(new Uint8Array(19200));
@@ -152,7 +206,7 @@ test('sunflower states the detected feeling, adapted tone and voice, and shows i
   await expect(page.getByRole('img', { name: 'Sunflower looking frustrated' })).toBeVisible();
   await page.locator('.flower').screenshot({ path: 'test-results/sunflower-frustrated.png' });
   expect(conversed.map(body => body.tonality)).toEqual(['auto', 'auto']);
-  expect(spoken.map(body => body.tonality)).toEqual(['reassuring', 'empathic']);
+  expect(spoken.map(body => body.tonality)).toEqual([undefined, 'reassuring', 'empathic']);
 });
 
 test('intro shows Got credits? :) and then reveals the sunflower', async ({ page }) => {

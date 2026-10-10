@@ -740,7 +740,19 @@ h1 {
 
 .record-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+}
+
+.record-help {
+  margin: 0;
+  max-width: 290px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .record-button {
@@ -749,6 +761,7 @@ h1 {
   align-items: center;
   justify-content: center;
   min-width: 230px;
+  max-width: 100%;
   background: var(--blue);
   color: white;
   border: none;
@@ -762,6 +775,20 @@ h1 {
 .record-button:hover:not(:disabled) {
   background: #1d4ed8;
   transform: translateY(-1px);
+}
+
+.record-button-secondary {
+  min-width: 0;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--border-hairline);
+  padding: 11px 20px;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.record-button-secondary:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.045);
 }
 
 .record-button.recording {

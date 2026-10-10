@@ -104,7 +104,7 @@ test('speech stops playing audio immediately while keeping the live microphone o
   await page.addInitScript(() => {
     Object.assign(window, { holdDuplexAudio: true });
     const original = window.fetch.bind(window);
-    window.fetch = async (input, init) => String(input) === '/api/speak'
+    window.fetch = async (input, init) => String(input) === '/api/speak' && JSON.parse(String(init?.body)).text === 'Tell me more.'
       ? new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(9600)); } }), { headers: { 'Content-Type': 'audio/pcm', 'X-Audio-Sample-Rate': '48000' } })
       : original(input, init);
   });
