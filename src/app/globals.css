@@ -53,7 +53,6 @@ button:focus-visible,input:focus-visible{outline:3px solid #1d2a14;outline-offse
 .error{margin:0;padding:10px 14px;border-radius:14px;background:#fff1ec;border:1px solid #f3b8a6;color:#8a2c13;font-size:14px;max-width:620px}
 
 /* Controls */
-.scenarios{display:flex;flex-wrap:wrap;gap:8px;width:100%}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);backdrop-filter:blur(8px);font-weight:500;font-size:14px;transition:background .2s,transform .2s}
 .pill:hover:not(:disabled){background:#fff;transform:translateY(-1px)}
 .pill-on{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -69,6 +68,32 @@ button:focus-visible,input:focus-visible{outline:3px solid #1d2a14;outline-offse
 .composer input{flex:1;min-width:0;border:0;background:transparent;padding:10px 0;outline:none}
 .composer button{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--ink);color:#fff}
 .dock-actions{display:flex;gap:8px;width:100%}
+
+/* Wardrobe (after Lacoste's Polo Factory: deep green, mint, oval badge) */
+.wardrobe{--mint:#d5f0bd;width:100%;max-width:620px;padding:16px 18px 14px;border-radius:26px;background:#3e5c41;color:var(--mint);box-shadow:0 18px 40px rgba(40,62,40,.28)}
+.wardrobe-head{display:flex;justify-content:space-between;align-items:center}
+.wardrobe-badge{padding:6px 16px;border:1.5px solid currentColor;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.wardrobe-count{font-size:12px;font-variant-numeric:tabular-nums;opacity:.8}
+.rail{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:18px}
+.rail::before{content:'';position:absolute;top:0;left:-6px;right:-6px;height:5px;border-radius:5px;background:linear-gradient(#e8d39a,#b8955a);box-shadow:0 2px 4px rgba(0,0,0,.25)}
+.hanger{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 2px 6px;color:var(--mint);border-radius:14px;transform-origin:50% 0;transition:translate .25s ease}
+.hanger:hover{translate:0 2px}
+.hanger-hook{width:58%;height:auto;margin-top:-4px}
+.hanger-icon{width:100%;height:58px;padding:5px;margin-top:-6px;border-radius:14px;background:rgba(213,240,189,.1);border:1.5px solid rgba(213,240,189,.18);transition:background .25s}
+.hanger-label{font-size:11px;line-height:1.15;text-align:center}
+.hanger-on{animation:swing .7s ease-out}
+.hanger-on .hanger-icon{background:var(--mint);border-color:var(--mint)}
+.hanger-on .hanger-label{font-weight:700;color:#fff}
+.hanger:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wardrobe-pick{display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:12px;border-top:1px solid rgba(213,240,189,.22)}
+.wardrobe-arrow{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:50%;border:1.5px solid currentColor;color:var(--mint);transition:background .2s,color .2s}
+.wardrobe-arrow:hover{background:var(--mint);color:#3e5c41}
+.wardrobe-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:center}
+.wardrobe-text strong{font-family:var(--font-display),sans-serif;font-size:21px;font-weight:800;color:#fff}
+.wardrobe-text span{font-size:13px;opacity:.85}
+.outfit{transform-box:fill-box;transform-origin:50% 0;animation:dress .6s cubic-bezier(.3,1.45,.5,1)}
+@keyframes swing{0%{rotate:0deg}25%{rotate:7deg}55%{rotate:-4deg}80%{rotate:2deg}100%{rotate:0deg}}
+@keyframes dress{from{translate:0 -36px;opacity:0;scale:1.06}to{translate:0 0;opacity:1;scale:1}}
 
 /* Feedback */
 .report{display:flex;flex-direction:column;gap:16px;max-width:660px;padding:22px;border-radius:24px;background:var(--card);border:1px solid var(--line);backdrop-filter:blur(10px)}
@@ -105,6 +130,9 @@ button:focus-visible,input:focus-visible{outline:3px solid #1d2a14;outline-offse
   .copy{align-self:start}
   .dock{margin-top:6px}
   .report-grid{grid-template-columns:1fr}
+  .wardrobe{padding:14px 12px 12px}
+  .hanger-label{font-size:10px}
+  .hanger-icon{height:46px}
   .corner{padding:16px}
 }
 @media (prefers-reduced-motion:reduce){

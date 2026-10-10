@@ -2,7 +2,7 @@
 
 Practise the conversations that matter before having them for real. Choose a scenario, talk to a sunflower that senses your tone and adapts its voice, and finish with two strengths, two improvements and a better way to phrase your response.
 
-Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b8023c53570998144). Scenarios: job interview, salary negotiation, relationship conversation, difficult feedback, and a custom scenario.
+Built from the [Notion hackathon plan](https://app.notion.com/p/3f5d67cd0a05805b8023c53570998144). The wardrobe offers five scenarios, each an outfit for the sunflower: job interview (suit & tie), relationship breakup (handbag & pearls), flatmate talk (beanie & mug), cold call (headset & badge) and bazaar negotiation, where you hold your price as the seller (sun hat & price tag). The API also keeps `raise`, `feedback` and `custom`.
 
 ## Run locally
 
@@ -25,7 +25,7 @@ For the submission, identify the features as Gradium REST STT and TTS, include t
 
 ## Demo
 
-The page opens with a short “Got credits? :)” intro, then a sunflower in a garden. Pick **Ask for a raise** and start practising. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
+The page opens with a short “Got credits? :)” intro, then a sunflower in a garden. Pick an outfit from **The wardrobe** (click a hanger, use the arrows, or ←/→ on the rail), for example **Bazaar negotiation**, and start practising. Give three short answers using the microphone or typed input. End the session to get feedback, then try again using the suggested phrasing.
 
 The microphone uses push-to-talk: click to record, then finish your turn. Audio is encoded as actual mono PCM WAV, not WebM relabelled as WAV. Audio goes to Gradium; the transcript goes to Gemini; Gemini's reply goes to Gradium for spoken output. A typed turn skips transcription. The sunflower’s face mirrors the detected feeling and has listening, thinking and talking states.
 
@@ -59,7 +59,7 @@ The five-person team can own UI, microphone/voice, conversation/feedback, integr
 | `POST /api/speak` | `{ text, tonality? }` | `audio/wav` bytes |
 | `POST /api/feedback` | Session and message history | `{ summary, strengths, improvements, suggestedResponse }` |
 
-Session input: `scenarioId`, `difficulty`, optional `customScenario`, optional `tonality` (`auto` by default), and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
+Session input: `scenarioId`, `difficulty`, optional `customScenario`, optional `tonality` (`auto` by default), and `messages` containing `role` (`user` or `assistant`) and `content`. Scenario IDs: `interview`, `raise`, `relationship`, `feedback`, `flatmate`, `coldcall`, `bazaar`, `custom`. Difficulties: `friendly`, `neutral`, `challenging`. Failures return `{ error }` with a non-200 status.
 
 Transcripts live in browser memory only. The app does not save recordings, accounts or sessions. Feedback concerns the words spoken; it does not diagnose personality or mood. Provider retention policies still apply.
 

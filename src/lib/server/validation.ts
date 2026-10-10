@@ -2,7 +2,7 @@ import { z } from 'zod';
 export const tonalitySchema = z.enum(['calm', 'reassuring', 'empathic', 'friendly', 'confident', 'excited', 'neutral']);
 export const userToneSchema = z.enum(['confident', 'calm', 'enthusiastic', 'neutral', 'hesitant', 'nervous', 'defensive', 'frustrated', 'upset']);
 export const sessionSchema = z.object({
-    scenarioId: z.enum(['interview', 'raise', 'relationship', 'feedback', 'custom']), difficulty: z.enum(['friendly', 'neutral', 'challenging']), customScenario: z.string().trim().max(1500).optional(), tonality: z.union([tonalitySchema, z.literal('auto')]).optional(),
+    scenarioId: z.enum(['interview', 'raise', 'relationship', 'feedback', 'flatmate', 'coldcall', 'bazaar', 'custom']), difficulty: z.enum(['friendly', 'neutral', 'challenging']), customScenario: z.string().trim().max(1500).optional(), tonality: z.union([tonalitySchema, z.literal('auto')]).optional(),
     messages: z.array(z.object({
         role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(4000)
     }).strict()).min(1).max(40)

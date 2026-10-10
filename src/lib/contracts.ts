@@ -1,4 +1,4 @@
-export type ScenarioId = 'interview' | 'raise' | 'relationship' | 'feedback' | 'custom';
+export type ScenarioId = 'interview' | 'raise' | 'relationship' | 'feedback' | 'flatmate' | 'coldcall' | 'bazaar' | 'custom';
 export type Difficulty = 'friendly' | 'neutral' | 'challenging';
 export type Tonality = 'calm' | 'reassuring' | 'empathic' | 'friendly' | 'confident' | 'excited' | 'neutral';
 export type UserTone = 'confident' | 'calm' | 'enthusiastic' | 'neutral' | 'hesitant' | 'nervous' | 'defensive' | 'frustrated' | 'upset';

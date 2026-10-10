@@ -4,14 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, Mic, RotateCcw, Send, Square } from 'lucide-react';
 import { SCENARIOS } from '@/lib/scenarios';
 import { tonalityById, userToneLabel } from '@/lib/tonality';
-import type { ConversationMessage, ConverseReply, FeedbackReport, ScenarioId, Tonality, UserTone } from '@/lib/contracts';
+import type { ConversationMessage, ConverseReply, FeedbackReport, Tonality, UserTone } from '@/lib/contracts';
 import { useVoiceSession } from '@/hooks/use-voice-session';
 import { Sunflower, type FlowerState } from './sunflower';
+import type { OutfitId } from './outfits';
+import { Wardrobe } from './wardrobe';
 
 type Setup = { gemini: boolean; gradium: boolean };
 type Tones = { userTone?: UserTone; tonality?: Tonality };
 
-const PRACTICE = SCENARIOS.filter(item => item.id !== 'custom');
 const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 
 async function responseError(response: Response) {
@@ -47,7 +48,7 @@ function Scenery() {
 export function Coach() {
   const [intro, setIntro] = useState(true);
   const endIntro = useCallback(() => setIntro(false), []);
-  const [scenarioId, setScenarioId] = useState<ScenarioId>('interview');
+  const [scenarioId, setScenarioId] = useState<OutfitId>('interview');
   const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [tones, setTones] = useState<Tones>({});
@@ -192,7 +193,7 @@ export function Coach() {
   const headline = report ? 'Here’s what you can take with you.'
     : feeling && tone ? `I’m sensing you feel ${feeling}, so I’m adapting ${article(tone.label)} ${tone.label.toLowerCase()} tone. ${tone.voiceName} is here to train you.`
     : started ? 'Talk to me. I’ll sense how you feel and adapt my tone.'
-    : 'Hi, I’m your practice sunflower. Pick a conversation and I’ll train you.';
+    : 'Hi, I’m your practice sunflower. Dress me for the talk you want to train.';
   const status = micStarting ? 'connecting your microphone' : recorder.isRecording ? 'listening' : state === 'thinking' ? 'thinking' : state === 'speaking' ? `${tone?.voiceName ?? 'sunflower'} is speaking` : started ? 'your turn' : 'ready when you are';
 
   return <main className="garden">
@@ -200,9 +201,9 @@ export function Coach() {
     <Scenery />
     <header className="corner"><span className="corner-mark">Got credits? <b>:)</b></span><span className="corner-status">{status}</span></header>
     <section className="stage">
-      <Sunflower state={flowerState} mood={(report ? undefined : tones.userTone) ?? 'happy'} />
+      <Sunflower state={flowerState} mood={(report ? undefined : tones.userTone) ?? 'happy'} outfit={scenarioId} />
       <div className="copy">
-        <h1 className={`headline ${feeling && tone && !report ? 'headline-long' : ''}`} aria-live="polite">{headline}</h1>
+        <h1 className={`headline ${(feeling && tone && !report) || !started ? 'headline-long' : ''}`} aria-live="polite">{headline}</h1>
         {(setupFailed || (setup && !setup.gemini)) && <p className="notice" role="status">{setupFailed ? 'Could not check service availability. Refresh to try again.' : 'Connect Gemini to start practising. Add GEMINI_API_KEY and restart the app.'}</p>}
         {setup?.gemini && !setup.gradium && <p className="notice" role="status">Voice is off until GRADIUM_API_KEY is configured. You can still type.</p>}
         {report ? <div className="report">
@@ -222,7 +223,7 @@ export function Coach() {
       </div>
       {!report && <div className="dock">
         {!started ? <>
-          <div className="scenarios" role="group" aria-label="Conversation">{PRACTICE.map(item => <button key={item.id} className={`pill ${scenarioId === item.id ? 'pill-on' : ''}`} aria-pressed={scenarioId === item.id} onClick={() => setScenarioId(item.id)}>{item.title}</button>)}</div>
+          <Wardrobe value={scenarioId} onChange={setScenarioId} />
           <button className="start" disabled={!setup?.gemini} onClick={begin}>Start practising <ArrowRight size={20} /></button>
         </> : <>
           <button className={`mic ${recorder.isRecording ? 'mic-on' : ''}`} disabled={busy || !setup?.gradium} onClick={toggleRecording}>{recorder.isRecording ? <Square size={22} fill="currentColor" /> : <Mic size={26} />}<span className="sr-only">{recorder.isRecording ? 'Finish & send' : 'Record your answer'}</span></button>

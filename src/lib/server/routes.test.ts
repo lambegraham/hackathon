@@ -104,6 +104,16 @@ describe('coach API', () => {
         generateContent.mockResolvedValue({ text: 'Plain text reply' });
         expect((await converse(request(input))).status).toBe(502);
     });
+    it.each([
+        ['flatmate', 'flatmate'],
+        ['coldcall', 'sales call'],
+        ['bazaar', 'haggling'],
+        ['relationship', 'break up']
+    ])('accepts the %s wardrobe scenario and plays its role', async (scenarioId, role) => {
+        generateContent.mockResolvedValue(turn('Go on.'));
+        expect((await converse(request({ ...input, scenarioId }))).status).toBe(200);
+        expect(generateContent.mock.calls[0][0].config.systemInstruction).toContain(role);
+    });
     it('rejects invalid scenario and overlong history', async () => {
         expect((await converse(request({
             ...input, scenarioId: 'bad'

@@ -47,7 +47,7 @@ test('three turns preserve scenario/history, play voice, and produce feedback', 
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
   await page.screenshot({ path: 'test-results/rehearsal-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: /Ask for a raise/ }).click();
+  await page.getByRole('radio', { name: /Bazaar negotiation/ }).click();
   await page.getByRole('button', { name: 'Start practising' }).click();
   const answers = ['I took ownership of onboarding.', 'It saved ten hours each month.', 'Could we agree on next steps?'];
   for (const [index, answer] of answers.entries()) {
@@ -57,7 +57,7 @@ test('three turns preserve scenario/history, play voice, and produce feedback', 
     await expect(page.getByLabel('Your answer')).toBeEnabled();
   }
   expect(requests).toHaveLength(3);
-  expect(requests[2].scenarioId).toBe('raise');
+  expect(requests[2].scenarioId).toBe('bazaar');
   expect(requests[2].difficulty).toBe('neutral');
   expect(requests[2].messages.filter(m => m.role === 'user').map(m => m.content)).toEqual([
     'I took ownership of onboarding.', 'It saved ten hours each month.', 'Could we agree on next steps?'
@@ -108,6 +108,40 @@ test('intro shows Got credits? :) and then reveals the sunflower', async ({ page
   await expect(page.locator('.intro')).toContainText(':)');
   await expect(page.locator('.intro')).toHaveCount(0, { timeout: 5000 });
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
+});
+
+test('wardrobe dresses the sunflower and picks the scenario to train', async ({ page }) => {
+  await providers(page, false);
+  const requests: { scenarioId: string }[] = [];
+  await page.route('**/api/converse', route => {
+    requests.push(route.request().postDataJSON());
+    return route.fulfill({ json: { reply: 'Hello? Who is this?' } });
+  });
+  await page.goto('/');
+  const rail = page.getByRole('radiogroup', { name: 'Choose an outfit' });
+  await expect(rail.getByRole('radio')).toHaveCount(5);
+  await expect(page.getByRole('radio', { name: 'Job interview: Suit & tie' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'interview');
+  await page.getByRole('button', { name: 'Next outfit' }).click();
+  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'relationship');
+  await expect(page.locator('.wardrobe-text')).toContainText('Relationship breakup');
+  await expect(page.locator('.wardrobe-text')).toContainText('Handbag & pearls');
+  await page.getByRole('radio', { name: /Relationship breakup/ }).press('ArrowRight');
+  await expect(page.getByRole('radio', { name: 'Flatmate talk: Cosy beanie & mug' })).toBeFocused();
+  await page.getByRole('button', { name: 'Previous outfit' }).click();
+  await page.getByRole('button', { name: 'Previous outfit' }).click();
+  await page.getByRole('button', { name: 'Previous outfit' }).click();
+  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'bazaar');
+  await page.getByRole('button', { name: 'Previous outfit' }).click();
+  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'coldcall');
+  await page.locator('.flower').screenshot({ path: 'test-results/sunflower-coldcall.png' });
+  await page.getByRole('button', { name: 'Start practising' }).click();
+  await expect(page.getByText('Hello? Who is this?')).toBeVisible();
+  await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'coldcall');
+  await page.getByLabel('Your answer').fill('Hi, I am calling about your energy bills.');
+  await page.getByRole('button', { name: 'Send answer' }).click();
+  await expect(page.getByLabel('Your answer')).toBeEnabled();
+  expect(requests[0].scenarioId).toBe('coldcall');
 });
 
 test('microphone sends a genuine WAV, then transcribes and plays the reply', async ({ page }) => {

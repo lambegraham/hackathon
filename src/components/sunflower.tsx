@@ -1,4 +1,5 @@
 import type { UserTone } from '@/lib/contracts';
+import { OutfitArt, type OutfitId } from './outfits';
 
 export type FlowerState = 'idle' | 'listening' | 'thinking' | 'speaking';
 export type FlowerMood = UserTone | 'happy';
@@ -41,13 +42,13 @@ function Eye({ x, kind }: { x: number; kind: Eyes }) {
   </g>;
 }
 
-export function Sunflower({ state, mood }: { state: FlowerState; mood: FlowerMood }) {
+export function Sunflower({ state, mood, outfit }: { state: FlowerState; mood: FlowerMood; outfit?: OutfitId }) {
   const base = FACES[mood];
   const face: Face = state === 'listening'
     ? { ...base, brows: BROW.raised, eyes: 'wide', mouth: 'M200 219a8 10 0 1 0 .1 0z', mouthFilled: true }
     : state === 'thinking' ? { ...base, brows: BROW.quizzical, eyes: 'up', mouth: 'M190 228q8 4 18-2', sweat: false, tear: false } : base;
   const label = state === 'listening' ? 'listening' : state === 'thinking' ? 'thinking' : mood === 'happy' ? 'happy to see you' : `looking ${mood}`;
-  return <div className={`flower flower-${state}`} data-mood={mood}>
+  return <div className={`flower flower-${state}`} data-mood={mood} data-outfit={outfit}>
     <svg viewBox="0 0 400 600" role="img" aria-label={`Sunflower ${label}`}>
       <defs>
         <radialGradient id="petal" cx="35%" cy="30%" r="80%"><stop offset="0" stopColor="#fff3a6" /><stop offset=".45" stopColor="#ffd23f" /><stop offset="1" stopColor="#f0a414" /></radialGradient>
@@ -77,6 +78,7 @@ export function Sunflower({ state, mood }: { state: FlowerState; mood: FlowerMoo
           {face.sweat && <path d="M252 150q8 12 0 18a6 6 0 0 1-8-6q2-6 8-12z" fill="#9fd4ff" stroke="#5aa6e0" strokeWidth="1.5" />}
           {face.tear && <path d="M166 204q7 11 0 16a5 5 0 0 1-7-5q2-5 7-11z" fill="#9fd4ff" stroke="#5aa6e0" strokeWidth="1.5" />}
         </g>
+        {outfit && <g className="outfit" key={outfit}><OutfitArt id={outfit} /></g>}
       </g>
     </svg>
   </div>;
