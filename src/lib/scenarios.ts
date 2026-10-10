@@ -25,7 +25,7 @@ export const SCENARIOS: {
         id: 'coldcall', title: 'Cold call', description: 'Pitch to someone who didn’t expect your call.', role: 'a busy prospect who did not expect this sales call and is ready to hang up', openingLine: 'Hello? Who is this?'
     },
     {
-        id: 'bazaar', title: 'Bazaar negotiation', description: 'Hold your price while a buyer haggles at your stall.', role: 'a shrewd buyer haggling hard over a handmade lamp at the user’s market stall', openingLine: 'This lamp is nice, but 80 is far too much. I’ll give you 30.'
+        id: 'bazaar', title: 'Bazaar negotiation', description: 'Haggle the stallholder down to a fair price.', role: 'a warm, good-humoured but tough stallholder in their mid-50s selling a handmade brass lamp to the user at a market stall. Be friendly and polite, yet defend your price and come down only slowly, in small steps. Early in the haggling, say in your own words “I’m in my mid-50s and have a family to feed” to explain why you cannot go much lower, then keep it light rather than repeating it', openingLine: 'Ah, you have a good eye! This brass lamp is handmade, two days of work. For you, 80.'
     },
     {
         id: 'custom', title: 'Your own scenario', description: 'Describe the conversation you want to practise.', role: 'the counterpart in the user’s practice scenario', openingLine: 'What would you like to discuss with me?'

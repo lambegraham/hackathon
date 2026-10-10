@@ -164,6 +164,14 @@ describe('coach API', () => {
         expect((await converse(request({ ...input, scenarioId }))).status).toBe(200);
         expect(generateContent.mock.calls[0][0].config.systemInstruction).toContain(role);
     });
+    it('plays the bazaar stallholder as a warm but tough seller with a family to feed', async () => {
+        generateContent.mockResolvedValue(turn('Go on.'));
+        await converse(request({ ...input, scenarioId: 'bazaar' }));
+        const prompt = generateContent.mock.calls[0][0].config.systemInstruction;
+        expect(prompt).toContain('warm, good-humoured but tough stallholder in their mid-50s selling');
+        expect(prompt).toContain('I’m in my mid-50s and have a family to feed');
+        expect(prompt).toContain('come down only slowly');
+    });
     it('rejects invalid scenario and overlong history', async () => {
         expect((await converse(request({
             ...input, scenarioId: 'bad'
