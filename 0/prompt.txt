@@ -1,0 +1,9 @@
+Pull the latest project.Use the Apple Design skill. https://www.ui-skills.com/skills/emilkowalski/apple-design Fix it and adapt it, and then push directly to main.
+
+---
+
+please run it locally
+
+---
+
+you didn't push to github! entire is not picking it up!!!!!!!!!!!!!
