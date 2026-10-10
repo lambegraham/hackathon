@@ -1,42 +1,13 @@
-please run it
+[Image]
+<image_files>
+The following images were provided by the user and saved to disk for future use:
+1. /Users/terence/.cursor/projects/Users-terence-Documents-anyresets-hackathon/assets/image-8ae76f3d-07ed-4bd5-9fa1-636042cd61bc.png
 
----
+These files can be read with tools, copied to other locations, or attached to subagents using the file_attachments parameter.
+</image_files>
+<timestamp>Saturday, Oct 10, 2026, 5:56 PM (UTC+2)</timestamp>
 
-we didn't use avatars?
+please validate as much as possible possible
+this ui is definitely what i asked for
 
----
-
-let's not use these fake looking faces, but rather the sunflower, but try to make it able to ook at me when i use the webcam
-
----
-
-why does this still look so off?
-
-very different
-
----
-
-didn't i tell you to make it look more like this?
-
-you did not do anything.
-
----
-
-didn't i tell you to make it look more like this?
-
-you did not do anything. 
-keep the sunflower, but where's the live, insights, and anything?
-
----
-
-make sure it's as simplified, as responsible, as possible
-
----
-
-please use the anti slop skill to make better design, ux ui max pro, apple design skill, etc.
-
-try to use top right a small window showcasing that current view of me just like on google meets or zoom?
-
----
-
-please be fast, submission deadline is in 15 min!
+what are you doing?
