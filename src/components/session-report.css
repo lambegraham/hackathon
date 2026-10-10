@@ -1,0 +1,65 @@
+.session-report {
+  width:100%;
+  max-width:980px;
+  margin-inline:auto;
+  padding:28px;
+}
+.session-report .report-banner { gap:16px; }
+.session-report .report-banner h1 { margin:0 0 8px; font-size:26px; letter-spacing:-1px; }
+.session-report .report-banner p { margin:0; line-height:1.7; }
+.session-report .report-save { padding:7px 10px; }
+.session-report .report-lead { margin:22px 0; font-size:17px; line-height:1.6; }
+.report-overview-scores {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:0 0 24px;
+}
+.report-overview-score { padding:14px 16px; background:#f5f7fc; border-radius:12px; }
+.report-overview-score dt { font-size:12px; color:var(--muted); }
+.report-overview-score dd { display:flex; align-items:baseline; gap:5px; margin:7px 0 0; font-variant-numeric:tabular-nums; }
+.report-overview-score strong { font-size:25px; line-height:1; color:var(--ink); }
+.report-overview-score .score-scale { color:var(--muted); font-size:12px; }
+.report-overview-score dd>span:last-child:not(.score-scale) { margin-left:auto; font-size:12px; }
+.session-report .feedback-grid { gap:28px; margin:0 0 24px; }
+.session-report .feedback-grid h3 { margin:0 0 10px; }
+.session-report .feedback-grid p { background:none; padding:0; margin:0 0 9px; font-size:12px; line-height:1.65; }
+.session-report .coaching-plan { grid-template-columns:1fr; gap:12px; padding:20px; margin-bottom:24px; }
+.session-report .coaching-plan h3 { margin:5px 0 0; font-size:18px; }
+.session-report .coaching-plan p { margin:4px 0 0; line-height:1.65; }
+.session-report .coaching-plan .practice-check { margin:0; }
+.session-report .coaching-plan details { font-size:12px; }
+.session-report .coaching-plan details>summary { padding:0; color:var(--muted); }
+.report-details { border-top:1px solid var(--line); }
+.report-disclosure { border-bottom:1px solid var(--line); }
+.report-disclosure>summary { display:flex; align-items:center; gap:12px; padding:18px 0; font-size:14px; font-weight:600; list-style:none; }
+.report-disclosure>summary::-webkit-details-marker { display:none; }
+.report-disclosure>summary>svg { margin-left:auto; flex-shrink:0; color:var(--muted); }
+.report-disclosure[open]>summary>svg { transform:rotate(180deg); }
+.report-disclosure>summary:focus-visible,
+.session-report .saved-transcript>summary:focus-visible,
+.session-report .coaching-plan summary:focus-visible { outline:2px solid var(--blue); outline-offset:4px; border-radius:3px; }
+.report-disclosure-status { color:var(--muted); font-size:11px; font-weight:400; }
+.report-disclosure-body { display:grid; gap:16px; padding:0 0 22px; min-width:0; }
+.report-disclosure-body>.report-section { border:0; padding:0; margin:0; }
+.report-disclosure-body>.muted-copy,.report-disclosure-body>.comparison-context { margin:0; }
+.report-disclosure-body .evidence-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.session-report .report-disclosure-body .suggested { margin:0; }
+.session-report .saved-transcript { margin:0 0 20px; padding-top:8px; border:0; }
+.session-report .saved-transcript>summary { padding:12px 0; color:var(--muted); }
+.session-report .report-end { gap:20px; }
+.session-report .report-end p { max-width:370px; margin:0; line-height:1.6; }
+.session-report .report-end .primary { flex-shrink:0; }
+@media(max-width:640px) {
+  .session-report { padding:20px; }
+  .session-report .report-banner { flex-direction:column; gap:10px; }
+  .session-report .report-banner h1 { font-size:23px; }
+  .session-report .report-lead { font-size:16px; margin:20px 0; }
+  .report-overview-scores { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .report-overview-score { padding:13px; }
+  .session-report .feedback-grid { grid-template-columns:1fr; gap:14px; }
+  .session-report .coaching-plan { padding:16px; }
+  .report-disclosure-body .evidence-grid { grid-template-columns:1fr; }
+  .session-report .report-end { flex-direction:column-reverse; align-items:stretch; gap:16px; }
+  .session-report .report-end .primary { width:100%; }
+}

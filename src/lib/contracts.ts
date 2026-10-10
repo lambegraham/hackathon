@@ -25,7 +25,17 @@ export type ConverseReply = {
     userTone: UserTone;
     tonality: Tonality;
 };
+export type ObservationTopic = 'main_point' | 'answer_structure' | 'concrete_example' | 'personal_ownership' | 'measurable_outcome' | 'question_focus' | 'tradeoff_reasoning' | 'learning';
+export type CoachingObservation = {
+    topic: ObservationTopic;
+    kind: 'strength' | 'improvement';
+    evidence: string;
+    detail: string;
+    action: string;
+};
 export type FeedbackReport = {
+    /** Optional for reports saved before recurring themes were introduced. */
+    observations?: CoachingObservation[];
     coaching?: CoachingReport;
     assessment?: Assessment;
     summary: string;

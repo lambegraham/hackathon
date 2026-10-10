@@ -1,7 +1,9 @@
 import type { SpeechMetadata } from './contracts';
+import { drainAudioWorklet } from './session-audio';
 import { createSpeechTranscript } from './speech-transcript';
 /** Continuous microphone capture. Only short-lived Gradium tokens enter the browser. */
 export type DuplexCallbacks = {
+  onAudio?: (samples: Float32Array, sampleRate: number) => void;
   onSpeechStart: () => void;
   onTranscript: (text: string) => void;
   onTurn: (text: string, speech?: SpeechMetadata) => void;
@@ -9,8 +11,17 @@ export type DuplexCallbacks = {
 };
 const WORKLET = `
 class DuplexRecorder extends AudioWorkletProcessor {
-  constructor() { super(); this.samples = new Float32Array(Math.round(sampleRate * .08)); this.offset = 0; }
+  constructor() {
+    super(); this.samples = new Float32Array(Math.round(sampleRate * .08)); this.offset = 0; this.finished = false;
+    this.port.onmessage = (event) => {
+      if (event.data?.type !== 'drain') return;
+      this.finished = true;
+      if (this.offset) this.port.postMessage(this.samples.slice(0, this.offset));
+      this.offset = 0; this.port.postMessage({ type: 'drained' });
+    };
+  }
   process(inputs) {
+    if (this.finished) return true;
     const channels = inputs[0];
     if (channels && channels.length) {
       for (let i = 0; i < channels[0].length; i++) {
@@ -77,6 +88,7 @@ export function createDuplexSession(callbacks: DuplexCallbacks) {
     send({ type: "flush", flush_id: pendingFlush });
   }
   function onFrame(samples: Float32Array) {
+    if (active && context) callbacks.onAudio?.(samples, context.sampleRate);
     if (!ready) return;
     let square = 0; for (const sample of samples) square += sample * sample;
     const loud = Math.sqrt(square / samples.length) > 0.015;
@@ -171,5 +183,10 @@ export function createDuplexSession(callbacks: DuplexCallbacks) {
       fail(message); throw new Error(message);
     }
   }
-  return { start, stop, flush };
+  async function finishCapture() {
+    const run = generation;
+    try { if (processor) await drainAudioWorklet(processor); }
+    finally { if (generation === run) stop(); }
+  }
+  return { start, stop, flush, finishCapture };
 }

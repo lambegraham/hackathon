@@ -3,6 +3,8 @@ import { ArrowRight, Trash2 } from 'lucide-react';
 import type { SavedSession } from '@/lib/profile';
 import { SCENARIOS } from '@/lib/scenarios';
 import { TrendChart } from './report-charts';
+import { PracticeProgress, RecurringPatterns } from './profile-growth';
+import './garden-reports.css';
 export function ProfileDashboard({ sessions, error, onOpen, onDelete, onClear, onBack }: {
     sessions: SavedSession[];
     error: string;
@@ -46,6 +48,7 @@ export function ProfileDashboard({ sessions, error, onOpen, onDelete, onClear, o
           <strong>{sessions.length.toString().padStart(2, '0')}
           </strong>
           <p>One conversation at a time.</p>
+          <PracticeProgress sessions={sessions}/>
         </div>
         <div className="profile-trend">
           <label htmlFor="progress-selection">Progress for</label>
@@ -56,6 +59,7 @@ export function ProfileDashboard({ sessions, error, onOpen, onDelete, onClear, o
           <TrendChart session={latest} sessions={sessions}/>
         </div>
       </div>
+      <RecurringPatterns session={latest} sessions={sessions} onOpen={onOpen}/>
       <div className="history-heading">
         <div>
           <span className="eyebrow">YOUR PRACTICE ARCHIVE</span>
@@ -89,7 +93,7 @@ export function ProfileDashboard({ sessions, error, onOpen, onDelete, onClear, o
         </article>)}
       </div>
     </>}
-    <p className="profile-privacy">Your latest 50 reports are saved in this browser. Clearing browser data removes this profile. Reports contain conversation text; no audio recordings are stored.</p>
+    <p className="profile-privacy">Your latest 50 reports and their recordings are saved in this browser. Deleting a session or clearing history removes its audio too. Clearing browser data removes this profile.</p>
   </section>
   );
 }

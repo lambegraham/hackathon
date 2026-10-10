@@ -1,0 +1,140 @@
+/* Carry the wardrobe's garden palette into saved conversations and coaching. */
+.wardrobe-app .session-report,
+.wardrobe-app .profile-count,
+.wardrobe-app .profile-trend,
+.wardrobe-app .profile-empty,
+.wardrobe-app .history-card,
+.wardrobe-app .pattern-card {
+  background:var(--card);
+  border-color:var(--line);
+  border-radius:24px;
+  box-shadow:0 12px 32px rgba(40,62,40,.06);
+}
+.wardrobe-app .session-report,
+.wardrobe-app .profile-dashboard { color:var(--ink); }
+.wardrobe-app .session-report { backdrop-filter:blur(12px); }
+.wardrobe-app .report-save {
+  background:#d5f0bd;
+  color:#3e5c41;
+  border:1px solid rgba(62,92,65,.18);
+  border-radius:999px;
+}
+.wardrobe-app .report-overview-score,
+.wardrobe-app .audio-stat-grid>div,
+.wardrobe-app .speech-stat-grid>div {
+  background:#eaf4e1;
+  border-color:var(--line);
+  border-radius:16px;
+}
+.wardrobe-app .session-report .primary,
+.wardrobe-app .profile-dashboard .primary {
+  background:#3e5c41;
+  color:#fffdf4;
+  border-radius:999px;
+  box-shadow:0 8px 20px rgba(40,62,40,.16);
+}
+.wardrobe-app .session-report .primary:hover:not(:disabled),
+.wardrobe-app .profile-dashboard .primary:hover:not(:disabled) { background:#2d4830; }
+.wardrobe-app .session-report .secondary-button,
+.wardrobe-app .profile-dashboard .secondary-button,
+.wardrobe-app .growth-filters button,
+.wardrobe-app .growth-session-controls button {
+  background:#fffdf4;
+  color:#3e5c41;
+  border-color:var(--line);
+  border-radius:999px;
+}
+.wardrobe-app .session-report .secondary-button:hover:not(:disabled),
+.wardrobe-app .profile-dashboard .secondary-button:hover:not(:disabled),
+.wardrobe-app .growth-filters button:hover,
+.wardrobe-app .growth-session-controls button:hover {
+  background:#eaf4e1;
+  border-color:#79a564;
+}
+.wardrobe-app .session-report .coaching-plan {
+  background:#fff6d7;
+  border-left:4px solid #ffd23f;
+  border-radius:0 18px 18px 0;
+}
+.wardrobe-app .practice-check { border-color:rgba(145,105,0,.2); }
+.wardrobe-app .practice-check input { accent-color:#3e5c41; }
+.wardrobe-app .session-report .feedback-grid div:first-child h3 svg { color:#3e5c41; }
+.wardrobe-app .session-report .feedback-grid div:last-child h3 svg { color:#916900; }
+.wardrobe-app .report-disclosure>summary:hover { color:#3e5c41; }
+.wardrobe-app .report-disclosure-status {
+  background:#fff6d7;
+  color:#735a18;
+  border-radius:999px;
+  padding:4px 8px;
+}
+.wardrobe-app .metric-note,
+.wardrobe-app .evidence-grid>div,
+.wardrobe-app .growth-empty,
+.wardrobe-app .speech-raw-turn p,
+.wardrobe-app .audio-recording { background:#f3f6e9; }
+.wardrobe-app .session-report .suggested { background:#fff6d7; border-color:#e9d99c; }
+.wardrobe-app .session-report .suggested blockquote { border-color:#ffd23f; }
+.wardrobe-app .answer-grid-button,
+.wardrobe-app .unscored-note { background:#fffdf4; }
+.wardrobe-app .answer-grid-button:hover { background:#eaf4e1; }
+.wardrobe-app .heatmap-score-3 { background:#edf0cd; color:#586022; }
+.wardrobe-app .heatmap-score-empty { background:#eceee6; color:#5c6752; }
+.wardrobe-app .answer-detail blockquote,
+.wardrobe-app .progress-quotes blockquote,
+.wardrobe-app .pattern-source blockquote { border-color:#a8c792; }
+.wardrobe-app .profile-count>strong { color:#3e5c41; }
+.wardrobe-app .profile-trend select,
+.wardrobe-app .audio-clip-select select { background:#fffdf4; border-color:var(--line); }
+.wardrobe-app .history-index,
+.wardrobe-app .empty-number { color:#6d885a; }
+.wardrobe-app .history-actions .icon-button { background:#eaf4e1; color:#3e5c41; border-radius:50%; }
+.wardrobe-app .history-actions .icon-button:hover { background:#d5f0bd; }
+.wardrobe-app .pattern-card { border-color:var(--line); }
+.wardrobe-app .pattern-action { background:#e6f2e8; }
+.wardrobe-app .pattern-improvement .pattern-action { background:#fff6d7; }
+.wardrobe-app .pattern-improvement .pattern-kind,
+.wardrobe-app .pattern-improvement .pattern-action strong { color:#916900; }
+.wardrobe-app .growth-filters button[aria-pressed="true"],
+.wardrobe-app .growth-session-controls button[aria-pressed="true"] {
+  color:#3e5c41;
+  border-color:#79a564;
+  background:#d5f0bd;
+}
+.wardrobe-app .growth-filters button:focus-visible,
+.wardrobe-app .growth-session-controls button:focus-visible { outline-color:#3e5c41; }
+.wardrobe-app .growth-selected { border-color:#79a564; background:#eaf4e1; border-radius:0 14px 14px 0; }
+.wardrobe-app .growth-selected-date,
+.wardrobe-app .growth-selected-scores dt { color:var(--soft-ink); }
+.wardrobe-app .growth-selected-scores dd { color:var(--ink); }
+.wardrobe-app .growth-evidence { border-color:var(--line); }
+.wardrobe-app .chart-legend i.previous { background:#cddbc1; }
+.wardrobe-app .score-chart .growth-bar { fill:#3e5c41; }
+.wardrobe-app .score-chart rect[fill="#dce3ef"] { fill:#cddbc1; }
+.wardrobe-app .score-chart text,
+.wardrobe-app .trend-chart text { fill:var(--soft-ink); }
+.wardrobe-app .score-chart line,
+.wardrobe-app .trend-chart line { stroke:#dce3d3; }
+.wardrobe-app .audio-count-chart li>div,
+.wardrobe-app .speech-gap-bar { background:#dce8d2; }
+.wardrobe-app .audio-progress-track span { background:#a8c792; }
+.wardrobe-app .audio-progress-column:last-child .audio-progress-track span { background:#3e5c41; }
+.wardrobe-app .audio-timeline { border-color:#b8ceaa; }
+.wardrobe-app .audio-recording audio { accent-color:#3e5c41; }
+.wardrobe-app .audio-filler-links button {
+  background:#fffdf4;
+  border-color:#b8ceaa;
+  border-radius:999px;
+  color:#3e5c41;
+}
+.wardrobe-app .audio-filler-links button:hover:not(:disabled) { background:#d5f0bd; }
+.wardrobe-app .speech-stat-grid strong,
+.wardrobe-app .speech-counts strong { color:#3e5c41; }
+.wardrobe-app .speech-stat-grid span,
+.wardrobe-app .speech-gap-row { color:var(--soft-ink); }
+.wardrobe-app .speech-gap-bar span { background:#79a564; }
+.wardrobe-app .save-alert { background:#fff1e6; border-color:#e9c8ad; color:#8a482e; }
+@media(max-width:640px) {
+  .wardrobe-app .session-report { border-radius:20px; }
+  .wardrobe-app .report-save { font-size:10px; }
+  .wardrobe-app .profile-intro h1 { font-size:30px; }
+}

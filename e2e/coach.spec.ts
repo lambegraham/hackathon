@@ -86,7 +86,7 @@ test('voice controls stack helper text below the primary action on desktop and m
     expect(help.y).toBeGreaterThanOrEqual(button.y + button.height);
     expect(button.x).toBeGreaterThanOrEqual(0);
     expect(button.x + button.width).toBeLessThanOrEqual(width);
-    await expect(page.getByRole('button', { name: 'Record your answer' })).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(page.getByRole('button', { name: 'Record your answer' })).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.78)');
     await page.screenshot({ path: `/private/tmp/voice-controls-${width}.png`, fullPage: true });
   }
 });
@@ -172,6 +172,7 @@ test('three turns preserve scenario/history, play voice, and produce feedback', 
   await expect(page.getByText('Saved to your local profile', { exact: true })).toBeVisible();
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('rehearsal.profile.v1')!).sessions[0]);
   expect(saved.scenarioId).toBe('bazaar');
+  await page.locator('summary').filter({ hasText: 'Answer feedback' }).click();
   await expect(page.getByText(report.suggestedResponse, { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Practise another conversation' }).click();
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeVisible();
@@ -357,17 +358,16 @@ test('waiting for microphone permission cannot overlap a typed turn', async ({ p
   await expect(page.getByRole('button', { name: 'Start practising' })).toBeEnabled();
 });
 
-test('studio focus and full stage retain the sunflower, outfit and conversation', async ({ page }) => {
+test('full stage retains the sunflower and restores the wardrobe controls', async ({ page }) => {
   await providers(page, false);
   await page.goto('/');
   await page.getByRole('radio', { name: 'Flatmate talk: Cosy beanie & mug' }).click();
-  await page.getByRole('button', { name: 'Collapse sidebar' }).click();
-  await expect(page.locator('.studio-grid')).toHaveClass(/sidebar-collapsed/);
+  await expect(page.getByRole('button', { name: 'Collapse sidebar' })).toHaveCount(0);
   await expect(page.locator('.flower')).toHaveAttribute('data-outfit', 'flatmate');
-  await expect(page.locator('.aura-visualizer-canvas')).toBeVisible();
+  await expect(page.locator('.flower svg')).toBeVisible();
+  await expect(page.locator('.aura-visualizer-canvas')).toHaveCount(0);
   await page.getByRole('button', { name: 'Maximize stage' }).click();
   await expect(page.locator('.studio-grid')).toHaveClass(/stage-maximized/);
   await page.getByRole('button', { name: 'Restore view' }).click();
-  await page.getByRole('button', { name: 'Expand sidebar' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Choose an outfit' })).toBeVisible();
 });

@@ -1,12 +1,22 @@
 import { z } from 'zod';
 import { speechMetadataSchema } from './speech-schema';
-import type { ConversationMessage, Difficulty, FeedbackReport, ScenarioId } from './contracts';
+import { audioReviewSchema, type AudioReview } from './audio-review';
+import type { AssessmentDimension, ConversationMessage, Difficulty, FeedbackReport, ScenarioId } from './contracts';
 import { ASSESSMENT_DIMENSIONS, reportSchema } from './feedback';
 
 export const PROFILE_STORAGE_KEY = 'rehearsal.profile.v1';
 export const MAX_PROFILE_SESSIONS = 50;
 const MAX_PROFILE_BYTES = 4 * 1024 * 1024;
 export const COACHING_METRICS = ASSESSMENT_DIMENSIONS.map(({ id, label }) => ({ key: id, label }));
+
+export type LiveFeedbackSignal = {
+    id: string;
+    messageIndex: number;
+    dimension: AssessmentDimension;
+    kind: 'strength' | 'improvement';
+    evidence: string;
+    detail: string;
+};
 
 export type SavedSession = {
     id: string;
@@ -18,6 +28,9 @@ export type SavedSession = {
     durationSeconds: number;
     messages: ConversationMessage[];
     report: FeedbackReport;
+    practiceCompleted?: boolean;
+    liveFeedback?: LiveFeedbackSignal[];
+    audio?: AudioReview;
 };
 export type LocalProfile = { version: 1; sessions: SavedSession[] };
 export type ProfileStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -26,6 +39,31 @@ export class ProfileStorageError extends Error {
         super(message);
         this.name = 'ProfileStorageError';
     }
+}
+
+const liveFeedbackSchema = z.array(z.object({
+    id: z.string().trim().min(1).max(128),
+    messageIndex: z.number().int().min(0).max(39),
+    dimension: z.enum(['clarity', 'structure', 'specificity', 'relevance']),
+    kind: z.enum(['strength', 'improvement']),
+    evidence: z.string().trim().min(1).max(400),
+    detail: z.string().trim().min(1).max(1000)
+}).strict()).max(40).refine(signals => new Set(signals.map(signal => signal.id)).size === signals.length);
+
+function hasLiveEvidence(messages: ConversationMessage[], signals: LiveFeedbackSignal[]): boolean {
+    return signals.every(signal => {
+        const message = messages[signal.messageIndex];
+        return message?.role === 'user' && message.content.includes(signal.evidence);
+    });
+}
+
+/** Future live-feedback integration boundary; signals never alter post-session scores. */
+export function attachLiveFeedback(session: SavedSession, signals: unknown): SavedSession {
+    const validated = liveFeedbackSchema.safeParse(signals);
+    if (!validated.success || !hasLiveEvidence(session.messages, validated.data)) {
+        throw new ProfileStorageError('Live feedback needs unique signals with evidence from the referenced user answer.');
+    }
+    return { ...session, liveFeedback: validated.data };
 }
 
 const sessionSchema = z.object({
@@ -41,9 +79,16 @@ const sessionSchema = z.object({
         content: z.string().min(1).max(4000),
         speech: speechMetadataSchema.optional()
     }).strict()).min(1).max(40),
-    report: reportSchema
+    report: reportSchema,
+    practiceCompleted: z.boolean().optional(),
+    liveFeedback: liveFeedbackSchema.optional(),
+    audio: audioReviewSchema.optional()
 }).strict().refine(session => session.scenarioId !== 'custom' || Boolean(session.customScenario?.trim()), {
     message: 'A custom session needs its scenario description.'
+}).refine(session => !session.liveFeedback || hasLiveEvidence(session.messages, session.liveFeedback), {
+    message: 'Live feedback must quote its referenced user answer.'
+}).refine(session => session.practiceCompleted === undefined || Boolean(session.report.coaching), {
+    message: 'Practice completion requires a coaching plan.'
 });
 const profileSchema = z.object({ version: z.literal(1), sessions: z.array(sessionSchema).max(MAX_PROFILE_SESSIONS) }).strict()
     .refine(profile => new Set(profile.sessions.map(session => session.id)).size === profile.sessions.length, { message: 'Duplicate session IDs.' });
@@ -92,6 +137,17 @@ export function saveSession(session: SavedSession, storage?: ProfileStorage): Lo
         .sort((a, b) => Date.parse(a.completedAt) - Date.parse(b.completedAt))
         .slice(-MAX_PROFILE_SESSIONS);
     return writeProfile({ version: 1, sessions }, target);
+}
+
+/** Read at update time so another view's latest report is preserved. */
+export function setPracticeCompleted(id: string, completed: boolean, storage?: ProfileStorage): LocalProfile {
+    if (typeof completed !== 'boolean') throw new ProfileStorageError('Practice completion must be true or false.');
+    const target = resolveStorage(storage);
+    const profile = readProfile(target);
+    const session = profile.sessions.find(item => item.id === id);
+    if (!session) throw new ProfileStorageError('This session is no longer saved.');
+    if (!session.report.coaching) throw new ProfileStorageError('This session does not have a practice plan.');
+    return writeProfile({ ...profile, sessions: profile.sessions.map(item => item.id === id ? { ...item, practiceCompleted: completed } : item) }, target);
 }
 
 export function deleteSession(id: string, storage?: ProfileStorage): LocalProfile {

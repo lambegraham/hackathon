@@ -36,13 +36,14 @@ export function AnswerReview({ session, onPractiseAnswer }: {
   </section>;
 }
 
-export function CoachingPlan({ session }: { session: SavedSession }) {
+export function CoachingPlan({ session, onComplete }: { session: SavedSession; onComplete?: (completed: boolean) => void }) {
   const coaching = session.report.coaching;
   if (!coaching) return null;
   return <section className="coaching-plan" aria-label="Your next practice plan">
     <div className="coaching-priority"><span className="eyebrow">ONE THING TO WORK ON</span><h3>{coaching.priority}</h3></div>
-    <div><span className="eyebrow">YOUR PRACTICE DRILL</span><p>{coaching.drill}</p></div>
-    <div><span className="eyebrow">NEXT SESSION’S GOAL</span><p>{coaching.nextGoal}</p></div>
+    <p>{coaching.drill}</p>
+    <details className="practice-goal"><summary>Goal for next time</summary><p>{coaching.nextGoal}</p></details>
+    {onComplete && <label className="practice-check"><input type="checkbox" checked={session.practiceCompleted ?? false} onChange={event => onComplete(event.target.checked)} />I completed this practice drill</label>}
   </section>;
 }
 

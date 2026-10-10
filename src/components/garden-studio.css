@@ -1,0 +1,99 @@
+.wardrobe-app { position: relative; isolation: isolate; max-width: 1400px; min-height: 100vh; padding: 0 4vw; }
+.wardrobe-app > :not(.scenery):not(.intro) { position: relative; z-index: 1; }
+.wardrobe-app .scenery { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.wardrobe-app .hills { position: absolute; bottom: 0; width: 100%; height: 38vh; }
+.wardrobe-app .cloud { position: absolute; width: 200px; height: 60px; border-radius: 60px; background: white; opacity: .7; filter: blur(1px); box-shadow: 40px -26px 0 8px white, 95px -10px 0 -2px white, -30px -6px 0 -6px white; animation: garden-drift 75s linear infinite; }
+.wardrobe-app .cloud-a { top: 12%; left: -10%; }
+.wardrobe-app .cloud-b { top: 24%; left: 40%; scale: .7; animation-duration: 85s; animation-delay: -30s; }
+.wardrobe-app .cloud-c { top: 7%; left: 75%; scale: .9; animation-duration: 70s; animation-delay: -50s; }
+@keyframes garden-drift { from { translate: 0 0; } to { translate: 120vw 0; } }
+
+.wardrobe-app .topbar { height: 78px; border: 0; }
+.wardrobe-app .brand-mark { border-radius: 50%; background: var(--sun); color: var(--ink); }
+.wardrobe-app .profile-button { border-radius: 999px; border: 1px solid var(--border-subtle); background: var(--card); padding: 9px 18px; }
+.wardrobe-app .studio-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(430px, 1.1fr); grid-template-areas: 'flower copy' 'flower wardrobe'; grid-template-rows: auto 1fr; gap: 24px 5vw; min-height: calc(100vh - 152px); align-items: start; padding: 26px 0; }
+.wardrobe-app .page-heading { grid-area: copy; display: block; margin: 0; padding: 0; }
+.wardrobe-app .page-heading h1 { font-size: clamp(30px, 3.05vw, 46px); line-height: 1.06; letter-spacing: -.03em; font-weight: 800; max-width: 620px; }
+.wardrobe-app .eyebrow { margin-bottom: 12px; font-size: 10px; letter-spacing: .16em; }
+.wardrobe-app .page-heading .session-chip { display: none; }
+.wardrobe-app .scenario-panel { grid-area: wardrobe; padding: 0; border: 0; gap: 0; }
+.wardrobe-app .wardrobe { max-width: none; padding: 18px 20px 16px; border-radius: 26px; box-shadow: 0 18px 40px rgba(40,62,40,.2); }
+.wardrobe-app .rail { gap: 8px; }
+.wardrobe-app .hanger-label { font-size: 11px; }
+.wardrobe-app .hanger-icon { height: 64px; }
+.wardrobe-app .wardrobe-text strong { font-size: 23px; }
+.wardrobe-app .wardrobe-text span { font-size: 13px; }
+.wardrobe-app .wardrobe-arrow { width: 38px; height: 38px; }
+.wardrobe-app .start-button { align-self: flex-start; margin-top: 22px; padding: 16px 26px; font-size: 16px; background: var(--ink); box-shadow: 0 8px 22px rgba(29,42,20,.16); }
+.wardrobe-app .primary:hover:not(:disabled), .wardrobe-app .record-button:hover:not(:disabled) { background: #2d4730; }
+.wardrobe-app .garden-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 24px; }
+.wardrobe-app .garden-settings .custom-label { margin: 0; min-width: 0; font-size: 12px; color: var(--muted); }
+.wardrobe-app .garden-settings :is(input, select, textarea) { display: block; width: 100%; margin: 5px 0 0; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 12px; background: rgba(255,255,255,.68); color: var(--ink); font-size: 13px; }
+.wardrobe-app .garden-custom-scenario { grid-column: 1 / -1; }
+.wardrobe-app .stage-panel { grid-area: flower; min-width: 0; align-self: center; padding: 0; }
+.wardrobe-app .stage-top { padding: 0 18px 12px; }
+.wardrobe-app .stage-tool-btn { border-radius: 999px; background: rgba(255,255,255,.45); color: var(--muted); }
+.wardrobe-app .difficulty-badge { background: var(--card); color: var(--muted); }
+.wardrobe-app .avatar-stage { padding: 0; }
+.wardrobe-app .flower svg { height: min(64vh, 640px); min-height: 470px; width: 100%; max-width: 100%; }
+.wardrobe-app .stage-persona { margin-top: 8px; }
+.wardrobe-app .counterpart-name { font-family: var(--font-display), sans-serif; font-size: 18px; }
+.wardrobe-app .state-indicator { background: rgba(255,255,255,.65); box-shadow: none; }
+.wardrobe-app .garden-setup .stage-bottom, .wardrobe-app .garden-setup .transcript-panel { display: none; }
+.wardrobe-app .garden-active { grid-template-areas: 'flower copy' 'flower conversation'; }
+.wardrobe-app .garden-active .scenario-panel { display: none; }
+.wardrobe-app .garden-active .flower svg { height: 370px; min-height: 0; }
+.wardrobe-app .garden-active .page-heading h1 { font-size: clamp(28px, 2.5vw, 38px); }
+.wardrobe-app .stage-bottom { padding: 22px 0 0; margin: 0; }
+.wardrobe-app .stage-controls-area { gap: 10px; }
+.wardrobe-app .record-button { box-shadow: 0 6px 18px rgba(29,42,20,.12); }
+.wardrobe-app .record-button-secondary { background: var(--card); box-shadow: none; }
+.wardrobe-app .record-button-secondary:hover:not(:disabled) { background: white; }
+.wardrobe-app .record-button.recording { background: var(--ink); }
+.wardrobe-app .record-help { max-width: 360px; font-size: 11px; }
+.wardrobe-app .transcript-panel { grid-area: conversation; padding: 24px; border: 1px solid var(--border-subtle); border-radius: 26px; background: rgba(255,253,243,.88); min-height: 440px; height: min(60vh, 660px); max-height: none; box-shadow: 0 12px 32px rgba(40,62,40,.06); }
+.wardrobe-app .transcript-panel .panel-heading { border-bottom: 1px solid var(--border-hairline); }
+.wardrobe-app .message-assistant p { background: rgba(255,255,255,.72); }
+.wardrobe-app .message-user p { background: #e2efd7; color: var(--ink); }
+.wardrobe-app .turn-count-badge { background: var(--blue-soft); color: var(--muted); }
+.wardrobe-app .composer { border-radius: 18px; background: white; border-color: var(--border-subtle); }
+.wardrobe-app .composer button { background: var(--blue); }
+.wardrobe-app .composer button:hover:not(:disabled) { background: var(--ink); }
+.wardrobe-app .footer { margin: 0; padding: 22px 0; border: 0; color: var(--muted); }
+.wardrobe-app .studio-grid.stage-maximized { grid-template-columns: 1fr; grid-template-areas: 'flower'; }
+.wardrobe-app .studio-grid.stage-maximized .page-heading { display: none; }
+.wardrobe-app .studio-grid.stage-maximized .stage-panel { width: min(680px, 100%); justify-self: center; }
+
+@media (max-width: 900px) {
+  .wardrobe-app { padding: 0 22px; }
+  .wardrobe-app .studio-grid { grid-template-columns: minmax(260px, .85fr) minmax(360px, 1fr); column-gap: 24px; }
+  .wardrobe-app .flower svg { min-height: 420px; }
+  .wardrobe-app .page-heading h1 { font-size: 32px; }
+}
+@media (max-width: 700px) {
+  .wardrobe-app { padding: 0 18px; }
+  .wardrobe-app .topbar { height: 68px; }
+  .wardrobe-app .brand { font-size: 20px; }
+  .wardrobe-app .studio-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'flower' 'copy' 'wardrobe'; min-height: 0; gap: 22px; padding: 8px 0 24px; }
+  .wardrobe-app .stage-top { padding: 0 0 8px; }
+  .wardrobe-app .flower svg { height: 290px; min-height: 0; }
+  .wardrobe-app .page-heading h1 { font-size: 31px; }
+  .wardrobe-app .wardrobe { padding: 16px 12px 14px; }
+  .wardrobe-app .rail { gap: 4px; }
+  .wardrobe-app .hanger-label { font-size: 10px; }
+  .wardrobe-app .hanger-icon { height: 48px; }
+  .wardrobe-app .wardrobe-text strong { font-size: 21px; }
+  .wardrobe-app .wardrobe-text span { font-size: 12px; }
+  .wardrobe-app .wardrobe-arrow { width: 32px; height: 32px; }
+  .wardrobe-app .start-button { width: 100%; }
+  .wardrobe-app .garden-settings { gap: 12px; margin-top: 20px; }
+  .wardrobe-app .garden-active { grid-template-areas: 'copy' 'flower' 'conversation'; }
+  .wardrobe-app .garden-active .flower svg { height: 260px; }
+  .wardrobe-app .transcript-panel { padding: 18px; min-height: 420px; height: 560px; }
+  .wardrobe-app .footer { font-size: 10px; gap: 16px; }
+  .wardrobe-app .hills { height: 30vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wardrobe-app .cloud, .wardrobe-app .flower svg { animation: none; }
+  .wardrobe-app .studio-grid { transition: none; }
+}

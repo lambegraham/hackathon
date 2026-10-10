@@ -1,0 +1,22 @@
+.growth-filters, .growth-session-controls { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
+.growth-filters button, .growth-session-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 7px 11px; border: 1px solid #dce3ef; border-radius: 8px; background: #fff; color: #44536c; font: inherit; font-size: 12px; cursor: pointer; }
+.growth-filters button[aria-pressed="true"], .growth-session-controls button[aria-pressed="true"] { color: #183ba8; border-color: #254ee8; background: #eef2ff; }
+.growth-filters button:hover, .growth-session-controls button:hover { border-color: #254ee8; }
+.growth-filters button:focus-visible, .growth-session-controls button:focus-visible { outline: 3px solid #254ee8; outline-offset: 3px; }
+.growth-swatch { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; }
+.growth-session-controls { max-height: 132px; overflow-y: auto; padding: 4px; }
+.growth-session-controls button { min-width: 38px; font-variant-numeric: tabular-nums; }
+.growth-selected { padding: 16px; margin: 16px 0; border-left: 3px solid #254ee8; background: #f6f8fc; overflow-wrap: anywhere; }
+.growth-selected-date { margin: 0 0 12px; color: #44536c; font-size: 12px; }
+.growth-selected-scores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.growth-selected-scores dt { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #44536c; }
+.growth-selected-scores dd { margin: 4px 0 0; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #17243d; }
+.growth-evidence { border-top: 1px solid #dce3ef; margin-top: 14px; padding-top: 12px; }
+.growth-evidence h4 { font-size: 13px; margin: 0 0 6px; }
+.growth-evidence p { margin: 6px 0 0; font-size: 13px; line-height: 1.6; }
+.growth-line { animation: growth-line-reveal 650ms ease-out both; }
+.growth-bar { transform-box: fill-box; transform-origin: left center; animation: growth-bar-reveal 500ms ease-out both; }
+@keyframes growth-line-reveal { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0); } }
+@keyframes growth-bar-reveal { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (max-width: 560px) { .growth-selected-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .growth-line, .growth-bar { animation: none; } }

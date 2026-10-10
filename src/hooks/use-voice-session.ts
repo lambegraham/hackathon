@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { encodeWav, mergeAudioChunks, resampleMono } from "@/lib/audio";
 import { createManualTranscript } from "@/lib/manual-transcript";
+import { drainAudioWorklet } from "@/lib/session-audio";
 
 const MAX_SECONDS = 60;
 const WORKLET_SOURCE = `
@@ -10,9 +11,16 @@ class MonoRecorder extends AudioWorkletProcessor {
   constructor() {
     super();
     this.buffer = new Float32Array(1024);
-    this.offset = 0;
+    this.offset = 0; this.finished = false;
+    this.port.onmessage = (event) => {
+      if (event.data?.type !== 'drain') return;
+      this.finished = true;
+      if (this.offset) this.port.postMessage(this.buffer.slice(0, this.offset));
+      this.offset = 0; this.port.postMessage({ type: 'drained' });
+    };
   }
   process(inputs) {
+    if (this.finished) return true;
     const channels = inputs[0];
     if (channels && channels.length) {
       const mono = new Float32Array(channels[0].length);
@@ -41,6 +49,7 @@ type Capture = {
   processor: AudioWorkletNode | null;
   muted: GainNode | null;
   timer: ReturnType<typeof setTimeout> | null;
+  draining: Promise<void> | null;
 };
 
 function releaseCapture(capture: Capture | null) {
@@ -88,7 +97,7 @@ export function useVoiceSession() {
     };
   }, [cancelRecording]);
 
-  const startRecording = useCallback(async (onTranscript?: (text: string) => void) => {
+  const startRecording = useCallback(async (onTranscript?: (text: string) => void, onAudio?: (samples: Float32Array, sampleRate: number) => void) => {
     cancelRecording();
     setError(null);
     setLiveTranscriptError(null);
@@ -104,7 +113,7 @@ export function useVoiceSession() {
       const context = new AudioContext();
       const capture: Capture = {
         stream: pendingStream, context, source: context.createMediaStreamSource(pendingStream),
-        processor: null, muted: null, timer: null,
+        processor: null, muted: null, timer: null, draining: null,
       };
       captureRef.current = capture;
       sampleRateRef.current = context.sampleRate;
@@ -124,6 +133,7 @@ export function useVoiceSession() {
         if (generation !== generationRef.current) return;
         chunksRef.current = [...chunksRef.current, event.data];
         transcriptRef.current?.push(event.data);
+        onAudio?.(event.data, context.sampleRate);
       };
       capture.source.connect(capture.processor);
       capture.processor.connect(capture.muted);
@@ -145,11 +155,17 @@ export function useVoiceSession() {
         void transcript.start(context.sampleRate);
       }
       capture.timer = setTimeout(() => {
-        transcriptRef.current?.stop();
-        transcriptRef.current = null;
-        releaseCapture(captureRef.current);
-        captureRef.current = null;
-        if (mountedRef.current) setError("60-second limit reached. Finish to send your answer.");
+        if (!capture.processor) return;
+        capture.draining ??= drainAudioWorklet(capture.processor);
+        let finishMessage = "60-second limit reached. Finish to send your answer.";
+        void capture.draining.catch((cause) => {
+          finishMessage = cause instanceof Error ? cause.message : "Unable to finish audio capture.";
+        }).finally(() => {
+          if (generation !== generationRef.current) return;
+          transcriptRef.current?.stop(); transcriptRef.current = null;
+          releaseCapture(captureRef.current); captureRef.current = null;
+          if (mountedRef.current) setError(finishMessage);
+        });
       }, MAX_SECONDS * 1000);
     } catch (cause) {
       pendingStream?.getTracks().forEach((track) => track.stop());
@@ -163,6 +179,18 @@ export function useVoiceSession() {
 
   const stopRecording = useCallback(async (): Promise<Blob> => {
     if (!activeRef.current) throw new Error("Start recording before finishing your answer.");
+    const generation = generationRef.current;
+    const capture = captureRef.current;
+    try {
+      if (capture?.processor) {
+        capture.draining ??= drainAudioWorklet(capture.processor);
+        await capture.draining;
+      }
+    } catch (cause) {
+      if (generation === generationRef.current) cancelRecording();
+      throw cause;
+    }
+    if (generation !== generationRef.current) throw new Error("Recording was cancelled.");
     const chunks = chunksRef.current;
     const rate = sampleRateRef.current;
     cancelRecording();

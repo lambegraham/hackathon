@@ -16,7 +16,7 @@ async function liveProviders(page: Page, pendingPermission = false) {
       createBuffer(_channels: number, length: number, rate: number) { return { duration: length / rate, copyToChannel() {} }; }
       createBufferSource() { return { ...node(), buffer: null, onended: null as (() => void) | null, start() { setTimeout(() => this.onended?.(), (window as unknown as { holdDuplexAudio?: boolean }).holdDuplexAudio ? 5000 : 200); }, stop() { harness.audioStopped++; } }; }
     } as unknown as typeof AudioContext;
-    window.AudioWorkletNode = class { port = { onmessage: null }; constructor() { harness.port = this.port; } connect() {} disconnect() {} } as unknown as typeof AudioWorkletNode;
+    window.AudioWorkletNode = class { port = { onmessage: null as ((event: { data: Float32Array | { type: string } }) => void) | null, postMessage: () => { this.port.onmessage?.({ data: { type: 'drained' } }); } }; constructor() { harness.port = this.port; } connect() {} disconnect() {} } as unknown as typeof AudioWorkletNode;
     navigator.mediaDevices.getUserMedia = async () => {
       if (pendingPermission) await new Promise<void>(resolve => { harness.release = resolve; });
       return { getTracks: () => [{ stop() { harness.stopped++; } }] } as unknown as MediaStream;
@@ -217,9 +217,11 @@ test('raw spoken fillers and timed gaps survive the report and profile reload',a
   await expect(page.getByLabel('Your answer')).toBeEnabled();
   await page.getByRole('button',{name:'End session & get feedback'}).click();
   await expect(page.getByText('Saved to your local profile',{exact:true})).toBeVisible();
+  await page.locator('summary').filter({ hasText: 'Voice & recording' }).click();
   await expect(page.getByRole('heading',{name:'Words, fillers and gaps'})).toBeVisible();
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('rehearsal.profile.v1')!).sessions[0]);
   expect(saved.messages.find((m:{role:string})=>m.role==='user').speech.segments).toEqual([{text:'Um...',startSeconds:.2,endSeconds:.6},{text:' I, I built a tool!',startSeconds:1.4,endSeconds:2.8}]);
   await page.reload();await page.getByRole('button',{name:'My profile'}).click();await page.getByRole('button',{name:'Open report'}).click();
+  await page.locator('summary').filter({ hasText: 'Voice & recording' }).click();
   await expect(page.getByRole('heading',{name:'Words, fillers and gaps'})).toBeVisible();
 });

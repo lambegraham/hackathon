@@ -96,7 +96,7 @@ describe('coach API', () => {
         vi.stubEnv('GEMINI_CONVERSATION_MODEL', conversationModel);
         vi.stubEnv('GEMINI_FEEDBACK_MODEL', feedbackModel);
         generateContent.mockResolvedValueOnce(turn('Tell me more.')).mockResolvedValueOnce({ text: JSON.stringify({
-            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.', assessment: assessment(), coaching: coaching()
+            summary: 'Clear example.', observations: [], strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature.', assessment: assessment(), coaching: coaching()
         }) });
         expect((await converse(request(input))).status).toBe(200);
         expect((await feedback(request(input))).status).toBe(200);
@@ -218,7 +218,7 @@ describe('coach API', () => {
     });
     it('validates structured feedback', async () => {
         const report = {
-            summary: 'Clear example.', strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature and measured its impact.', assessment: assessment(), coaching: coaching()
+            summary: 'Clear example.', observations: [], strengths: ['Specific', 'Concise'], improvements: ['Add impact', 'Explain decisions'], suggestedResponse: 'I built the feature and measured its impact.', assessment: assessment(), coaching: coaching()
         };
         generateContent.mockResolvedValue({ text: JSON.stringify(report) });
         expect(await (await feedback(request(input))).json()).toEqual(report);
@@ -227,14 +227,14 @@ describe('coach API', () => {
     });
     it.each([0, 6, 2.5])('rejects out-of-range or fractional assessment scores (%s)', async score => {
         const report = {
-            summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer',
+            summary: 'Good', observations: [], strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer',
             assessment: { ...assessment(), clarity: { score, evidence: 'I built a project.', action: 'Explain impact.' } }
         };
         generateContent.mockResolvedValue({ text: JSON.stringify(report) });
         expect((await feedback(request(input))).status).toBe(502);
     });
     it('requires assessments in new reports and rejects invented or assistant-only evidence', async () => {
-        const report = { summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer' };
+        const report = { summary: 'Good', observations: [], strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer' };
         generateContent.mockResolvedValue({ text: JSON.stringify(report) });
         expect((await feedback(request(input))).status).toBe(502);
         generateContent.mockResolvedValue({ text: JSON.stringify({ ...report, assessment: assessment('Invented impact') }) });
@@ -243,14 +243,14 @@ describe('coach API', () => {
         expect((await feedback(request({ ...input, messages: [...input.messages, { role: 'assistant', content: 'Tell me more.' }] }))).status).toBe(502);
     });
     it('keeps legacy stored reports valid while requiring complete dimensions for new feedback', async () => {
-        const report = { summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer' };
+        const report = { summary: 'Good', observations: [], strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer' };
         expect(reportSchema.safeParse(report).success).toBe(true);
         const incomplete = { clarity: assessment().clarity, structure: assessment().structure, specificity: assessment().specificity };
         generateContent.mockResolvedValue({ text: JSON.stringify({ ...report, assessment: incomplete }) });
         expect((await feedback(request(input))).status).toBe(502);
     });
     it('accepts exact evidence from any user answer and rejects oversized evidence or actions', async () => {
-        const report = { summary: 'Good', strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer', assessment: assessment('measured the result'), coaching: { ...coaching(), answerReviews: [...coaching().answerReviews, { ...coaching('measured the result', 2).answerReviews[0], question: 'What happened?' }] } };
+        const report = { summary: 'Good', observations: [], strengths: ['Clear', 'Concise'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer', assessment: assessment('measured the result'), coaching: { ...coaching(), answerReviews: [...coaching().answerReviews, { ...coaching('measured the result', 2).answerReviews[0], question: 'What happened?' }] } };
         const messages = [...input.messages, { role: 'assistant', content: 'What happened?' }, { role: 'user', content: 'I measured the result after shipping.' }];
         generateContent.mockResolvedValue({ text: JSON.stringify(report) });
         expect((await feedback(request({ ...input, messages }))).status).toBe(200);
@@ -264,7 +264,7 @@ describe('coach API', () => {
     });
     it('uses a dedicated anchored coach, target role and bounded comparable history', async () => {
         const previousSession = { id: 'previous', ...input, messages: [{role: 'user', content: 'I helped.'}], report: { summary: 'Old' } };
-        const report = { summary: 'Good', strengths: ['Clear', 'Brief'], improvements: ['Results', 'Ownership'], suggestedResponse: 'I built a project.', assessment: assessment(), coaching: { ...coaching(), progress: { previousSessionId: 'previous', changes: [{ dimension: 'specificity', direction: 'improved', currentEvidence: 'I built a project.', previousEvidence: 'I helped.', explanation: 'More explicit contribution, but neither answer states impact.' }] } } };
+        const report = { summary: 'Good', observations: [], strengths: ['Clear', 'Brief'], improvements: ['Results', 'Ownership'], suggestedResponse: 'I built a project.', assessment: assessment(), coaching: { ...coaching(), progress: { previousSessionId: 'previous', changes: [{ dimension: 'specificity', direction: 'improved', currentEvidence: 'I built a project.', previousEvidence: 'I helped.', explanation: 'More explicit contribution, but neither answer states impact.' }] } } };
         generateContent.mockResolvedValue({text: JSON.stringify(report)});
         expect((await feedback(request({...input, targetRole: 'Software engineer', previousSession: {...previousSession, targetRole:'Software engineer'}}))).status).toBe(200);
         const generated = generateContent.mock.calls[0][0];
@@ -277,7 +277,7 @@ describe('coach API', () => {
         expect((await converse(request({...input, targetRole: 'Software engineer'}))).status).toBe(400);
     });
     it('uses provider-compatible arrays and enums instead of JSON Schema tuples and constants', async () => {
-        generateContent.mockResolvedValue({text:JSON.stringify({summary:'Good',strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:coaching()})});
+        generateContent.mockResolvedValue({text:JSON.stringify({summary:'Good',observations: [], strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:coaching()})});
         expect((await feedback(request(input))).status).toBe(200);
         const schema = generateContent.mock.calls[0][0].config.responseJsonSchema;
         expect(JSON.stringify(schema)).not.toContain('prefixItems');
@@ -288,7 +288,7 @@ describe('coach API', () => {
     });
     it('provides exact indexed evidence banks and forbids ellipses or combined quotations', async () => {
         const messages=[{role:'assistant',content:'What did you build?'},{role:'user',content:'I built a project. I measured its outcome. '+ 'x'.repeat(450)}];
-        const report={summary:'Good',strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:coaching('I built a project.',1)};
+        const report={summary:'Good',observations: [], strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:coaching('I built a project.',1)};
         generateContent.mockResolvedValue({text:JSON.stringify(report)});
         expect((await feedback(request({...input,messages}))).status).toBe(200);
         const generation=generateContent.mock.calls[0][0];
@@ -315,7 +315,7 @@ describe('coach API', () => {
         expect(generateContent).not.toHaveBeenCalled();
     });
     it('requires new coaching, rejects duplicate answer and skill reviews, and bounds the feedback payload', async () => {
-        const report = {summary: 'Good', strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
+        const report = {summary: 'Good', observations: [], strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
         generateContent.mockResolvedValue({text:JSON.stringify(report)});
         expect((await feedback(request(input))).status).toBe(502);
         generateContent.mockResolvedValue({text:JSON.stringify({...report,coaching:{...coaching(),answerReviews:[...coaching().answerReviews,...coaching().answerReviews]}})});
@@ -332,13 +332,13 @@ describe('coach API', () => {
         expect((await feedback(request({...input,targetRole:'Engineer',previousSession}))).status).toBe(400);
         const custom={...input,scenarioId:'custom',customScenario:' Ask for support '};
         const prior={id:'old',...custom,customScenario:'ask  for support',report:{summary:'Old'}};
-        const report={summary:'Good',strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:{...coaching(),progress:{previousSessionId:'old',changes:[]}}};
+        const report={summary:'Good',observations: [], strengths:['Clear','Brief'],improvements:['Details','Results'],suggestedResponse:'I built a project.',assessment:assessment(),coaching:{...coaching(),progress:{previousSessionId:'old',changes:[]}}};
         generateContent.mockResolvedValue({text:JSON.stringify(report)});
         expect((await feedback(request({...custom,previousSession:prior}))).status).toBe(200);
         expect((await feedback(request({...custom,previousSession:{...prior,customScenario:'Different topic'}}))).status).toBe(400);
     });
     it('rejects invented answer indexes, current evidence, missing reviews and false progress', async () => {
-        const report = {summary: 'Good', strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
+        const report = {summary: 'Good', observations: [], strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
         const invalid = [
             {...coaching(), answerReviews: [{...coaching().answerReviews[0], messageIndex: 1}]},
             {...coaching(), answerReviews: [{...coaching().answerReviews[0], evidence: 'invented'}]},
@@ -352,7 +352,7 @@ describe('coach API', () => {
         }
     });
     it('rejects invented prior evidence and missing baseline ids', async () => {
-        const report = {summary: 'Good', strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
+        const report = {summary: 'Good', observations: [], strengths: ['Clear','Brief'], improvements: ['Details','Results'], suggestedResponse: 'I built a project.', assessment: assessment()};
         const previousSession = {id:'previous', ...input, messages:[{role:'user',content:'I helped.'}], report: {summary:report.summary}};
         for (const progress of [
             {previousSessionId:'previous',changes:[{dimension:'clarity',direction:'improved',currentEvidence:'I built a project.',previousEvidence:'invented',explanation:'Better'}]},
@@ -470,7 +470,7 @@ describe('coach API', () => {
             ...input, messages
         }))).status).toBe(400);
         generateContent.mockResolvedValue({ text: JSON.stringify({
-                summary: 'Good', strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer', assessment: assessment('My experience'), coaching: coaching('My experience')
+                summary: 'Good', observations: [], strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer', assessment: assessment('My experience'), coaching: coaching('My experience')
             }) });
         expect((await feedback(request({
             ...input, messages
@@ -484,7 +484,7 @@ describe('coach API', () => {
     });
     it('does not accept the report request wrapper as user evidence', async () => {
         generateContent.mockResolvedValue({ text: JSON.stringify({
-            summary: 'Good', strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer',
+            summary: 'Good', observations: [], strengths: ['Clear', 'Specific'], improvements: ['Impact', 'Details'], suggestedResponse: 'Better answer',
             assessment: assessment('Produce report now.')
         }) });
         expect((await feedback(request(input))).status).toBe(502);

@@ -1,25 +1,34 @@
 @import 'tailwindcss';
 
 :root {
-  /* BORDERLESS CLEAN CANVAS PALETTE (SESAME / LINEAR INSPIRED) */
-  --bg-core: #f8fafc;
-  --bg-surface: #ffffff;
-  --border-hairline: rgba(15, 23, 42, 0.07);
-  --border-subtle: rgba(15, 23, 42, 0.12);
-  --border-focus: #2563eb;
+  /* Original wardrobe palette, shared by the studio and saved reports. */
+  --sky-top: #bcd8f2;
+  --sky-low: #eef2e2;
+  --sun: #ffd23f;
+  --leaf: #79a564;
+  --mint: #d5f0bd;
+  --card: rgba(255, 255, 255, .78);
+  --bg-core: #eef2e2;
+  --bg-surface: #fffdf4;
+  --line: rgba(29, 42, 20, .12);
+  --border-hairline: rgba(29, 42, 20, .10);
+  --border-subtle: rgba(29, 42, 20, .18);
+  --border-focus: #3e5c41;
 
-  --ink: #0f172a;
-  --ink-secondary: #334155;
-  --muted: #64748b;
-  --subtle: #94a3b8;
+  --ink: #1d2a14;
+  --ink-secondary: #35492d;
+  --muted: #4b5a3e;
+  --soft-ink: #4b5a3e;
+  --subtle: #617256;
+  --text-primary: var(--ink);
 
-  --blue: #2563eb;
-  --blue-soft: #eff6ff;
-  --blue-glow: rgba(37, 99, 235, 0.18);
-  --emerald: #059669;
-  --crimson: #e11d48;
+  /* Retain existing component token names so charts and controls stay consistent. */
+  --blue: #3e5c41;
+  --blue-soft: #eaf4e1;
+  --blue-glow: rgba(40, 62, 40, .18);
+  --emerald: #326638;
+  --crimson: #a33631;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Plus Jakarta Sans', Inter, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -27,10 +36,11 @@
 
 body {
   margin: 0;
-  background-color: var(--bg-core);
+  min-height: 100vh;
+  background: var(--sky-low) linear-gradient(180deg, var(--sky-top) 0%, #d9e8f1 45%, var(--sky-low) 100%) fixed;
   color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 15px; /* 字体基准适度展开 */
+  font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

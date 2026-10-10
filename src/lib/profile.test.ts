@@ -12,6 +12,13 @@ const report = { summary: 'Clear summary', strengths: ['Clear', 'Relevant'] as [
 const session = (id = 'one', overrides: Partial<SavedSession> = {}): SavedSession => ({ id, completedAt:'2026-10-10T10:00:00.000Z', scenarioId:'interview', difficulty:'neutral', durationSeconds:60, messages:[{role:'user',content:'My experience'}], report: report as SavedSession['report'], ...overrides });
 
 describe('local profile storage', () => {
+  it('persists audio analysis and recording references without putting audio bytes in localStorage', () => {
+    const storage = new MemoryStorage();
+    const audio = { recordings: [{ id: 'recording-1', durationSeconds: 10 }], analyses: [{ recordingId: 'recording-1', model: 'gemini-3.5-transcribe', transcript: 'Um hello', fillers: [{ word: 'Um', startSeconds: 1, endSeconds: 1.2 }] }] };
+    const saved = saveSession({ ...session(), audio }, storage);
+    expect(readProfile(storage).sessions[0]).toEqual(saved.sessions[0]);
+    expect(saved.sessions[0]).toHaveProperty('audio', audio);
+  });
   it('starts empty and persists validated sessions', () => {
     const storage = new MemoryStorage();
     expect(readProfile(storage)).toEqual({version:1,sessions:[]});

@@ -8,7 +8,8 @@ import { ApiError, requireKey } from './http';
 import { converseReplySchema, feedbackSchema } from './validation';
 import { COACH_INSTRUCTIONS, coachRequest } from './coach-prompt';
 // Gemini structured output accepts homogeneous arrays and enums, not Zod tuple prefixItems.
-const providerReportSchema = feedbackSchema.extend({
+const generatedFeedbackSchema = feedbackSchema.required({ observations: true });
+const providerReportSchema = generatedFeedbackSchema.extend({
     strengths: z.array(z.string().min(1).max(1000)).length(2),
     improvements: z.array(z.string().min(1).max(1000)).length(2),
     coaching: coachingSchema.extend({ rubricVersion: z.enum(['interview-coach-v1']) })
@@ -81,10 +82,12 @@ export async function converse(input: SessionInput): Promise<ConverseReply> {
 export async function feedback(input: FeedbackInput) {
     const output = await generate(input, true);
     try {
-        const report = feedbackSchema.parse(JSON.parse(output));
+        const report = generatedFeedbackSchema.parse(JSON.parse(output));
         const answers = input.messages.filter(message => message.role === 'user').map(message => message.content);
         if (Object.values(report.assessment).some(item => !answers.some(answer => answer.includes(item.evidence))))
             throw new Error('Assessment evidence must quote a user answer.');
+        if (report.observations.some(item => !answers.some(answer => answer.includes(item.evidence))))
+            throw new Error('Observation evidence must quote a user answer.');
         const reviews = report.coaching.answerReviews;
         const userIndexes = input.messages.flatMap((message, index) => message.role === 'user' ? [index] : []);
         if (reviews.length !== userIndexes.length || new Set(reviews.map(review => review.messageIndex)).size !== userIndexes.length

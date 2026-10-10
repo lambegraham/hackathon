@@ -15,7 +15,15 @@ class Socket {
 const disconnect = vi.fn(); const trackStop = vi.fn(); const contextClose = vi.fn(async () => {});
 class Processor {
   static latest: Processor;
-  port = { onmessage: null as ((e: { data: Float32Array }) => void) | null };
+  port = {
+    onmessage: null as ((e: { data: Float32Array | { type: string } }) => void) | null,
+    postMessage: vi.fn(() => {
+      queueMicrotask(() => {
+        this.port.onmessage?.({ data: new Float32Array(128).fill(0.2) });
+        this.port.onmessage?.({ data: { type: 'drained' } });
+      });
+    }),
+  };
   onprocessorerror: (() => void) | null = null;
   connect = vi.fn(); disconnect = disconnect;
   constructor() { Processor.latest = this; }
@@ -29,7 +37,7 @@ class Context {
   resume = vi.fn(async () => {}); close = contextClose;
 }
 const stream = { getTracks: () => [{ stop: trackStop }] };
-const callbacks = () => ({ onSpeechStart: vi.fn(), onTranscript: vi.fn(), onTurn: vi.fn(), onError: vi.fn() });
+const callbacks = () => ({ onSpeechStart: vi.fn(), onTranscript: vi.fn(), onTurn: vi.fn(), onError: vi.fn(), onAudio: vi.fn() });
 async function begin() {
   Socket.latest = undefined as unknown as Socket;
   const cb = callbacks(); const session = createDuplexSession(cb); const pending = session.start();
@@ -173,4 +181,17 @@ it('commits raw fillers, whitespace and timed segments before resetting next tur
   socket.message({type: 'flushed', flush_id: socket.sent.at(-1)?.flush_id});
   expect(cb.onTurn.mock.calls.at(-1)).toEqual(['new', {source: 'gradium', segments: [{text: 'new', startSeconds: 5}]}]);
   session.stop();
+});
+
+it('records quiet microphone frames with their sample rate and drains the last partial frame before stopping', async () => {
+  const { cb, session, processor } = await begin();
+  processor.frame(0);
+  expect(cb.onAudio).toHaveBeenCalledWith(new Float32Array(1920), 24000);
+  const finishing = session.finishCapture();
+  expect(trackStop).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(0); await finishing;
+  expect(cb.onAudio).toHaveBeenLastCalledWith(new Float32Array(128).fill(0.2), 24000);
+  expect(trackStop).toHaveBeenCalled();
+  const stale = cb.onAudio.mock.calls.length; processor.frame(0.2);
+  expect(cb.onAudio).toHaveBeenCalledTimes(stale);
 });

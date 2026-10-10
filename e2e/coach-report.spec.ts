@@ -15,10 +15,12 @@ test('rich coaching exposes evidence, unscored heatmap cells and skill trends', 
   await page.evaluate(sessions => localStorage.setItem('rehearsal.profile.v1', JSON.stringify({ version: 1, sessions })), [savedSession('old', '2026-10-09T10:00:00.000Z', false), savedSession('new', '2026-10-10T10:00:00.000Z', true)]);
   await page.getByRole('button', { name: 'My profile' }).click();
   await page.getByRole('button', { name: 'Open report' }).first().click();
+  await page.locator('summary').filter({ hasText: 'Answer feedback' }).click();
   await expect(page.getByRole('heading', { name: 'Your answers, at a glance' })).toBeVisible();
   await expect(page.getByText('Not enough evidence', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Answer 1: What did you build/ }).click();
   await expect(page.getByText('State who benefited and the outcome.')).toBeVisible();
+  await page.locator('summary').filter({ hasText: 'Progress over time' }).click();
   await page.locator('.progress-change summary').click();
   await expect(page.getByText('Both answers state your ownership clearly.')).toBeVisible();
   await expect(page.getByRole('img', { name: 'Four coaching skills over comparable conversations, scale 1 to 5' })).toBeVisible();

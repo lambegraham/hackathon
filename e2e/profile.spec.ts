@@ -20,6 +20,7 @@ test('reports save, survive reload and compare matching sessions', async ({ page
   let count = 0;
   await page.route('**/api/feedback', route => route.fulfill({ json: report(count++ ? [4, 3, 3, 4] : undefined) }));
   await page.goto('/'); await complete(page);
+  await page.locator('summary').filter({ hasText: 'Progress over time' }).click();
   await expect(page.getByText('No scored comparison is available yet for this scenario and difficulty.')).toBeVisible();
   await page.getByRole('button', { name: 'Practise another conversation' }).click();
   await complete(page);
@@ -61,6 +62,7 @@ test('mobile report graphs fit the screen and clear history works', async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await setup(page); await page.route('**/api/feedback', route => route.fulfill({ json: report() }));
   await page.goto('/'); await complete(page);
+  await page.locator('summary').filter({ hasText: 'Progress over time' }).click();
   await expect(page.getByRole('img', { name: 'Conversation skill scores, scale 1 to 5' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'My profile' }).click();

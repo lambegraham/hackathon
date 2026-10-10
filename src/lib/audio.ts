@@ -33,12 +33,12 @@ export function resampleMono(samples: Float32Array, sourceRate: number, targetRa
 }
 
 /** Encode real mono little-endian signed PCM16, not a renamed browser container. */
-export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+export function encodeWav(samples: Float32Array, sampleRate: number, options: { allowSilence?: boolean } = {}): Blob {
   if (!Number.isInteger(sampleRate) || sampleRate < 1 || sampleRate > 48000) {
     throw new Error("Invalid audio sample rate.");
   }
   if (samples.some((sample) => !Number.isFinite(sample))) throw new Error("Invalid audio samples.");
-  if (!samples.length || samples.every((sample) => sample === 0)) {
+  if (!samples.length || (!options.allowSilence && samples.every((sample) => sample === 0))) {
     throw new Error("No audio captured. Check your microphone and try again.");
   }
   const bytes = new ArrayBuffer(44 + samples.length * 2);
